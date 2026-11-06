@@ -63,6 +63,35 @@ body.bp-hidden #bpToggle{bottom:56px}
 #ctrl .turnlbl{font-size:13px;color:#ffd84a;font-weight:bold}
 body.bp-hidden #ctrl{bottom:72px}
 .rc{display:inline-flex;align-items:center;gap:4px}
+/* --- painéis --- */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.tbl th{text-align:left;color:#4a2e12;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #c9b382;padding:5px 4px}
+.tbl td{padding:6px 4px;border-bottom:1px solid #e0d2ae;vertical-align:middle}
+.tbl tr:hover td{background:#efe2bf}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff}
+.dot{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid #2b1a05;vertical-align:middle;margin-right:6px}
+.pos{color:#2a6a2a;font-weight:bold}
+.neg{color:#a0401a;font-weight:bold}
+.stitle{display:flex;align-items:center;gap:8px;font-size:12px;color:#4a2e12;font-weight:bold;margin:12px 0 4px;padding-bottom:4px;border-bottom:2px solid #c9b382;text-transform:uppercase;letter-spacing:.03em}
+.resbox{border:1px solid #c9b382;border-radius:6px;padding:6px 8px;margin:6px 0;background:#f8eed2}
+.rhead{display:flex;align-items:center;gap:8px;font-weight:bold;color:#3a2a10}
+.rhead .rv{margin-left:auto;font-size:14px}
+.rsrc{display:flex;align-items:center;gap:8px;padding:2px 0 2px 22px;font-size:12px;color:#3a2a10}
+.rsrc .v{margin-left:auto}
+.tl{border-left:3px solid #c9a24a;margin:0 0 0 6px;padding:2px 0 8px 12px;position:relative;font-size:12px}
+.tl::before{content:'';position:absolute;left:-7px;top:4px;width:9px;height:9px;border-radius:50%;background:#4a2e12}
+.tl .tn{font-weight:bold;color:#4a2e12;margin-right:6px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-size:12px;color:#3a2a10}
+kbd{background:#1f3b1f;color:#ffd84a;border-radius:3px;padding:1px 6px;font-size:11px;font-family:inherit}
+.step{display:flex;gap:10px;align-items:flex-start;margin:6px 0;font-size:12px;color:#3a2a10}
+.step .n{flex:0 0 22px;height:22px;border-radius:50%;background:#1f3b1f;color:#ffd84a;font-weight:bold;text-align:center;line-height:22px}
+.orow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #d8c8a0}
+.orow .lbl{font-weight:bold;color:#3a2a10}
+.orow .lbl small{display:block;font-weight:normal;color:#6b5a3a;font-size:11px}
+.orow .ctl{display:flex;align-items:center;gap:6px}
+.saveform{display:flex;gap:6px;margin:8px 0;padding:8px;background:#f8eed2;border:1px solid #c9b382;border-radius:6px}
+.saveform input{flex:1;padding:6px;border:1px solid #6b4a2a;border-radius:4px}
+#pop .cbtn.inl{width:auto;display:inline-block;margin:2px 2px 0 0;padding:4px 8px}
 input[type=range]{-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;background:#d8c8a0;outline:none;width:100%}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff8e6;border:2px solid #6b4a2a;cursor:pointer}
 input[type=checkbox]{accent-color:#c9a24a;width:16px;height:16px;vertical-align:middle}
@@ -121,6 +150,7 @@ const TILE_NAME={planicie:'Planície',floresta:'Floresta (madeira)',fruta:'Fruta
 const RES_NAME={wood:'madeira',stone:'pedra',metal:'metal',food:'comida',carvao:'carvão',tabua:'tábua',lapida:'pedra lapidada',aco:'aço',bens:'bens',science:'ciência',ouro:'ouro',petroleo:'petróleo',asfalto:'asfalto',combustivel:'combustível'};
 const DEF={
   casa:{n:'Casa',cat:'urbano',icon:'house',col:'#b5493a',c:{wood:10},cap:0},
+  muralha:{n:'Muralha',cat:'urbano',icon:'stone',col:'#5a5f68',c:{stone:30},cap:0,era:2,hp:300},
   estrada:{n:'Estrada',cat:'urbano',icon:'road',col:'#8a7050',c:{wood:2},cap:0},
   fundar:{n:'Fundar cidade',cat:'urbano',icon:'flag',col:'#c9a24a',c:{wood:150,stone:80},cap:0,era:2,special:true},
   quartel:{n:'Quartel',cat:'urbano',icon:'shield',col:'#5a4a6a',c:{wood:40,stone:20},cap:0,era:2,unique:true},
@@ -343,6 +373,16 @@ document.addEventListener('click',e=>{
 function h2(x,y){ let n=(x*374761393+y*668265263)^(x<<5); n=(n^(n>>>13))*1274126177; return ((n^(n>>>16))>>>0)%1000/1000; }
 function key(x,y){ return x+','+y; }
 function log(m){ S.log.push(m); if(S.log.length>60) S.log.shift(); }
+// Trajetória da partida: marcos que afetam o jogador.
+function hist(t){ S.hist=S.hist||[]; S.hist.push({turn:S.turn,t}); if(S.hist.length>80) S.hist.shift(); }
+// Livro-razão do turno: quanto cada fonte produziu (+) ou consumiu (-) de cada recurso.
+function led(r,src,amt){ if(!S||!amt) return; S.ledger=S.ledger||{}; const L=S.ledger[r]=S.ledger[r]||{}; L[src]=(L[src]||0)+amt; }
+const POP_MARKS=[10,25,50,100,200,400];
+function popMilestones(){
+  S.marks=S.marks||[];
+  const tp=S.cities.reduce((s,c)=>s+c.adults+c.children,0);
+  for(const m of POP_MARKS) if(tp>=m && !S.marks.includes(m)){ S.marks.push(m); hist('A população chegou a '+m+' pessoas.'); }
+}
 function showMsg(){ document.getElementById('msg').innerHTML=(S?S.log.slice(-4):[]).map(s=>`<div>${s}</div>`).join(''); }
 function rnd(){ return Math.random(); }
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -527,15 +567,12 @@ function armyCount(pid){ return groupsOf(pid).reduce((s,g)=>s+groupCount(g),0); 
 function armyPower(pid){ return groupsOf(pid).reduce((s,g)=>s+groupPower(g),0); }
 function scaleGroup(g,frac){
   for(const t of Object.keys(g.units)){ g.units[t]=Math.max(0,Math.floor(g.units[t]*frac)); if(g.units[t]<=0) delete g.units[t]; }
+  if(g.hp!=null) g.hp=Math.min(g.hp,groupHpMax(g));
 }
-function pruneGroups(){ S.groups=S.groups.filter(g=>groupCount(g)>0); }
+function pruneGroups(){ S.groups=S.groups.filter(g=>groupCount(g)>0 && (g.hp==null||g.hp>0)); }
 function loseArmy(pid,frac){
   for(const g of groupsOf(pid)) scaleGroup(g,1-frac);
   pruneGroups();
-}
-function defensePower(c){
-  const owner=cityOwner(c);
-  return armyCount(owner)*2.5 + c.level*4 + (c.capital?4:0);
 }
 function ringAround(c,r){
   const out=[];
@@ -573,20 +610,152 @@ function battle(a,b){
   const total=pa+pb||1;
   sfx('attack');
   if(pa>=pb){
-    scaleGroup(a,Math.max(0.2,1-(pb/total)));
+    scaleGroup(a,Math.max(0.2,1-(pb/total))); damageGroup(a,0.15);
     S.groups=S.groups.filter(g=>g!==b);
     log(pname(gPid(a))+' venceu uma batalha.');
     return a;
   } else {
-    scaleGroup(b,Math.max(0.2,1-(pa/total)));
+    scaleGroup(b,Math.max(0.2,1-(pa/total))); damageGroup(b,0.15);
     S.groups=S.groups.filter(g=>g!==a);
     log(pname(gPid(b))+' venceu uma batalha.');
     return b;
   }
 }
+// ---------- Vida, ruínas e saque ----------
+let pendingMove=null;
+function bMaxHp(b){
+  const d=DEF[b.type]||{};
+  const base=b.type==='base'?200:(d.hp||90);
+  return Math.round(base*(1+0.5*((b.level||1)-1)));
+}
+function ensureHp(b){ if(b.hp==null) b.hp=bMaxHp(b); }
+function groupHpMax(g){ return Math.max(10,groupSpace(g)*10); }
+function damageGroup(g,frac){ if(g.hp==null) g.hp=groupHpMax(g); g.hp=Math.max(0,g.hp-groupHpMax(g)*frac); }
+function inOwnTerritory(x,y,pid){ return peopleCities(pid).some(c=>Math.max(Math.abs(c.x-x),Math.abs(c.y-y))<=8); }
+function healTick(){
+  for(const o of buildingsList()){
+    const b=o.b; if(b.type==='ruina'||b.hp==null) continue;
+    const mx=bMaxHp(b); if(b.hp>=mx) continue;
+    if(inOwnTerritory(o.x,o.y,b.pid||0)) b.hp=Math.min(mx,b.hp+mx*0.08);
+  }
+  for(const g of S.groups){
+    const mx=groupHpMax(g), cur=g.hp==null?mx:g.hp; if(cur>=mx) continue;
+    if(inOwnTerritory(g.x,g.y,gPid(g))) g.hp=Math.min(mx,cur+mx*0.1);
+  }
+}
+function ruinTile(x,y,attackerPid){
+  const t=S.grid[y][x], b=t.b; if(!b||b.type==='ruina') return;
+  const d=DEF[b.type];
+  if(d && d.c && attackerPid===0){
+    const loot={}; for(const k in d.c) loot[k]=Math.floor(d.c[k]*0.3);
+    for(const k in loot) S.res[k]=(S.res[k]||0)+loot[k];
+    log('Saque: '+d.n+' rendeu '+costStr(loot)+'.');
+  }
+  t.b={type:'ruina',orig:b.type,cid:b.cid,pid:b.pid||0};
+  invalidate(); computeNetwork();
+}
+function damageCity(c,dmg,attackerPid){
+  const list=cityBuildings(c.id).filter(o=>o.b.type!=='ruina'&&o.b.type!=='base'&&o.b.type!=='estrada');
+  list.sort((a,b)=>(b.b.type==='muralha')-(a.b.type==='muralha'));
+  for(const o of list){
+    if(dmg<=0) break;
+    const b=o.b; ensureHp(b);
+    const take=Math.min(b.hp,dmg); b.hp-=take; dmg-=take;
+    if(b.hp<=0){ log(DEF[b.type].n+' de '+c.name+' foi destruída.'); ruinTile(o.x,o.y,attackerPid); }
+  }
+}
+function enemyAt(x,y){
+  const eg=groupAt(x,y); if(eg && gPid(eg)!==0) return {pid:gPid(eg),kind:'move'};
+  const b=S.grid[y][x].b;
+  if(b && (b.pid||0)!==0 && b.type!=='estrada' && b.type!=='ruina') return {pid:b.pid,kind:'bld'};
+  return null;
+}
 function canEnter(x,y){
   const t=S.grid[y][x];
-  return !t.b && t.t!=='rio';
+  if(t.t==='rio') return false;
+  return !t.b || t.b.type==='estrada' || t.b.type==='ruina';
+}
+function defensePower(c){
+  const owner=cityOwner(c);
+  let wall=0;
+  for(const o of cityBuildings(c.id)){
+    const b=o.b; if(b.type==='ruina'||b.type==='estrada') continue;
+    const hp=b.hp==null?bMaxHp(b):b.hp;
+    wall+= b.type==='muralha'? hp/25 : hp/120;
+  }
+  return armyCount(owner)*2.5 + c.level*4 + (c.capital?4:0) + wall;
+}
+function attackGroupOnCity(g,c){
+  const owner=cityOwner(c), r=relGet(gPid(g),owner);
+  const atk=groupPower(g), def=defensePower(c);
+  g.movedTurn=S.turn;
+  sfx('attack');
+  if(atk>def){
+    scaleGroup(g,0.8); loseArmy(owner,0.3); r.conf-=40;
+    destroyCity(c,'por '+pname(gPid(g)),gPid(g));
+    pruneGroups();
+    return true;
+  }
+  damageCity(c,atk*0.6,gPid(g));
+  damageGroup(g,0.2);
+  scaleGroup(g,0.6); loseArmy(owner,0.1); pruneGroups();
+  log(pname(gPid(g))+' foi repelido em '+c.name+'.');
+  return false;
+}
+function attackBuilding(g,x,y){
+  const b=S.grid[y][x].b;
+  if(!b || (b.pid||0)===0 || dist(g.x,g.y,x,y)!==1){ log('Precisa estar encostado no alvo.'); return; }
+  if(b.type==='base'){ const c=cityById(b.cid); if(c) attackGroupOnCity(g,c); return; }
+  if(g.movedTurn===S.turn){ log('Este grupo já agiu neste turno.'); return; }
+  ensureHp(b);
+  b.hp-=groupPower(g)*0.6;
+  g.movedTurn=S.turn; scaleGroup(g,0.85); damageGroup(g,0.05); pruneGroups(); sfx('attack');
+  if(b.hp<=0){ log((DEF[b.type]?DEF[b.type].n:'Construção')+' de '+pname(b.pid)+' foi destruída.'); ruinTile(x,y,0); }
+  else log('Construção de '+pname(b.pid)+' sofreu dano.');
+}
+function reconstruir(x,y){
+  const t=S.grid[y][x], b=t.b;
+  if(!b || b.type!=='ruina' || b.orig==='base' || (b.pid||0)!==0) return;
+  const od=DEF[b.orig]; if(!od) return;
+  if(groupAt(x,y)){ log('Há tropas neste tile.'); return; }
+  const c2={}; for(const k in od.c) c2[k]=od.c[k]*2;
+  if(!canPay(c2)){ log('Recursos insuficientes para reconstruir.'); return; }
+  pay(c2);
+  t.b={type:b.orig,level:1,workers:0,cid:b.cid,pid:0,hp:bMaxHp({type:b.orig,level:1})};
+  log(od.n+' reconstruída pelo dobro do custo.');
+  invalidate(); computeNetwork();
+}
+function runPending(){
+  const pm=pendingMove; pendingMove=null; modal=null;
+  const g=pm && groupById(pm.gid);
+  if(g){
+    if(pm.declare) declareWar(0,pm.pid);
+    if(pm.kind==='bld') attackBuilding(g,pm.x,pm.y); else moveNow(g,pm.x,pm.y);
+  }
+  renderAll();
+}
+function moveNow(g,x,y){
+  const res=tryStep(g,x,y);
+  if(res==='longe') log('Só dá para andar 1 tile por turno.');
+  else if(res==='ja') log('Este grupo já se moveu neste turno.');
+  else if(res==='bloqueado') log('O terreno ou uma construção bloqueia o caminho.');
+  else if(res==='ocupado') log('Já há suas unidades neste tile.');
+  else if(res==='paz') log('Vocês não estão em guerra. Não é possível entrar no tile.');
+  S.sel={x:g.x,y:g.y};
+}
+function moveSelected(x,y){
+  const g=groupById(S.selGroup); if(!g) return;
+  const en=enemyAt(x,y);
+  if(en && dist(g.x,g.y,x,y)===1){
+    const war=relGet(0,en.pid).war;
+    const isB=en.kind==='bld';
+    pendingMove={gid:g.id,x,y,kind:en.kind,pid:en.pid,declare:!war,
+      title: war?(isB?'Atacar construção?':'Atacar?'):'Declarar guerra?',
+      text: (isB?'Construção de ':'Grupo de ')+pname(en.pid)+(war?'.':'. Vocês não estão em guerra; confirmar declara guerra.'),
+      ok: war?'Atacar':'Declarar guerra e atacar'};
+    modal='confirm'; renderAll(); return;
+  }
+  moveNow(g,x,y);
 }
 // Alcance de movimento: tropas avançadas andam mais; estrada dá +1.
 function moveRange(g){
@@ -615,33 +784,6 @@ function tryStep(g,x,y){
   }
   g.x=x; g.y=y; g.movedTurn=S.turn;
   return 'ok';
-}
-function attackGroupOnCity(g,c){
-  const owner=cityOwner(c), r=relGet(gPid(g),owner);
-  const atk=groupPower(g), def=defensePower(c);
-  g.movedTurn=S.turn;
-  sfx('attack');
-  if(atk>def){
-    scaleGroup(g,0.8);
-    loseArmy(owner,0.3);
-    r.conf-=40;
-    destroyCity(c,'por '+pname(gPid(g)));
-    pruneGroups();
-    return true;
-  }
-  scaleGroup(g,0.6); loseArmy(owner,0.1); pruneGroups();
-  log(pname(gPid(g))+' foi repelido em '+c.name+'.');
-  return false;
-}
-function moveSelected(x,y){
-  const g=groupById(S.selGroup); if(!g) return;
-  const res=tryStep(g,x,y);
-  if(res==='longe') log('Só dá para andar 1 tile por turno.');
-  else if(res==='ja') log('Este grupo já se moveu neste turno.');
-  else if(res==='bloqueado') log('O terreno ou uma construção bloqueia o caminho.');
-  else if(res==='ocupado') log('Já há suas unidades neste tile.');
-  else if(res==='paz') log('Vocês não estão em guerra. Não é possível entrar no tile.');
-  S.sel={x:g.x,y:g.y};
 }
 function attackWithSelected(cid){
   const g=groupById(S.selGroup); const c=cityById(cid);
@@ -801,6 +943,7 @@ function foundCity(x,y){
   invalidate();
   S.tool=null; S.curCity=id;
   log(c.name+' fundada com '+FOUND_POP+' pessoas.');
+  hist('Fundou '+c.name+' com '+FOUND_POP+' pessoas.');
   sfx('build');
   computeNetwork(); computeContacts();
 }
@@ -842,11 +985,13 @@ function demolish(x,y){
   const c=DEF[b.type]?DEF[b.type].c:{};
   for(const k in c) S.res[k]+=Math.floor(c[k]*0.3);
   tile.b=null; S.sel=null; invalidate(); log('Construção demolida. Parte do material voltou.');
+  hist('Demoliu '+((DEF[b.type]&&DEF[b.type].n)||'uma construção')+'.');
   computeNetwork();
 }
 function chooseReligion(r){
   if(S.religion){ log('A religião já foi escolhida.'); return; }
   S.religion=r; log(r==='sec'?'A tribo escolheu o Secularismo Racional.':'A tribo escolheu o Fundamentalismo Ideológico.');
+  hist('Escolheu '+(r==='sec'?'Secularismo Racional':'Fundamentalismo Ideológico')+'.');
 }
 
 // ---------- Gerenciamento de cidades ----------
@@ -854,6 +999,7 @@ function setTax(cid,k){
   const c=cityById(cid);
   if(c.level<3){ log('Impostos só podem ser alterados no Nível 3.'); return; }
   c.tax=k; log(c.name+': impostos '+TAX[k].n+'.');
+  hist(c.name+': impostos definidos como '+TAX[k].n+'.');
 }
 function toggleRename(cid){
   if(!S.renaming){ S.renaming=true; log('Digite o novo nome e clique em Confirmar.'); return; }
@@ -885,6 +1031,7 @@ function evolveCity(cid){
   if(cityScore(c)<r.score){ log(c.name+': faltam pontos de construção conectados para o Nível '+next+'.'); return; }
   if(!canPay(r.cost)){ log('Recursos insuficientes para evoluir a cidade.'); return; }
   pay(r.cost); c.level=next; log(c.name+' evoluiu para o Nível '+next+'.');
+  hist(c.name+' subiu para o Nível '+next+'.');
 }
 
 // Trabalhadores: a cada turno, as construções com prioridade (★) são preenchidas primeiro;
@@ -1000,6 +1147,7 @@ function applyPending(){
   S.pending=null;
   const ev=EVENTS.find(e=>e.id===p.id);
   S.evHistory.push({turn:S.turn,id:ev.id});
+  hist('Evento: '+ev.n+'.');
   if(ev.dur===0){ evApplyInstant(p); return; }
   const a={id:ev.id,n:ev.n,start:S.turn,end:S.turn+ev.dur,scope:ev.scope,cityId:p.cityId,cx:p.cx,cy:p.cy};
   S.active.push(a);
@@ -1058,7 +1206,7 @@ function produce(){
       for(const r in d.inp){ const need=d.inp[r]*f; if(need>0) ratio=Math.min(ratio,S.res[r]/need); }
       ratio=Math.max(0,Math.min(1,ratio));
       if(ratio<=0) continue;
-      for(const r in d.inp) S.res[r]-=d.inp[r]*f*ratio;
+      for(const r in d.inp){ S.res[r]-=d.inp[r]*f*ratio; led(r,o.b.type,-d.inp[r]*f*ratio); }
       eff*=ratio;
     }
     if(d.need){
@@ -1075,17 +1223,17 @@ function produce(){
         let amt=d.out[r]*eff;
         if(r==='food') amt*=foodMult();
         if(r==='science' && boom) amt*=1.25;
-        S.res[r]=(S.res[r]||0)+amt;
+        S.res[r]=(S.res[r]||0)+amt; led(r,o.b.type,amt);
         S.gained=S.gained||{}; S.gained[r]=(S.gained[r]||0)+amt;
       }
     }
-    if(o.b.type==='escola' && S.religion==='sec') S.res.science+=2*eff;
+    if(o.b.type==='escola' && S.religion==='sec'){ S.res.science+=2*eff; led('science',o.b.type,2*eff); }
   }
 }
 
 function consumption(){ return S.cities.reduce((s,c)=>s+c.adults*0.25+c.children*0.125,0); }
 function consume(){
-  S.res.food-=consumption();
+  S.res.food-=consumption(); led('food','pop',-consumption());
   if(S.res.food<0){
     S.res.food=0;
     for(const c of S.cities) c.starve=(c.starve||0)+1;
@@ -1122,11 +1270,12 @@ function militaryTick(){
   const colapso=S.active.some(e=>e.id==='colapso');
   for(const c of S.cities){
     const tx=TAX[c.tax];
-    S.res.ouro+=(c.adults*tx.a+c.children*tx.c)*(1+0.15*(c.level-1))*(colapso?0.8:1);
+    const tax=(c.adults*tx.a+c.children*tx.c)*(1+0.15*(c.level-1))*(colapso?0.8:1);
+    S.res.ouro+=tax; led('ouro','impostos',tax);
   }
   let upkeep=0;
   for(const g of groupsOf(0)) for(const t of Object.keys(g.units)) upkeep+=UNITS[t].manut*g.units[t];
-  S.res.ouro-=upkeep*cityMult();
+  S.res.ouro-=upkeep*cityMult(); led('ouro','exercito',-upkeep*cityMult());
   if(S.res.ouro<0){ S.morale=Math.max(0,S.morale-10); }
   else S.morale=Math.min(100,S.morale+5);
   if(S.morale<10){
@@ -1182,18 +1331,18 @@ function happinessAll(){
 }
 
 // ---------- Destruição de cidades ----------
-function destroyCity(c,reason){
+function destroyCity(c,reason,attackerPid){
   const owner=cityOwner(c);
-  const tile=S.grid[c.y][c.x];
-  tile.b=null;
+  ruinTile(c.x,c.y,attackerPid);
   for(let y=Math.max(0,c.y-8);y<=Math.min(N-1,c.y+8);y++)
     for(let x=Math.max(0,c.x-8);x<=Math.min(N-1,c.x+8);x++){
-      const b=S.grid[y][x].b; if(b && b.cid===c.id) S.grid[y][x].b=null;
+      const b=S.grid[y][x].b; if(b && b.cid===c.id) ruinTile(x,y,attackerPid);
     }
   invalidate();
   if(owner===0) S.cities=S.cities.filter(x=>x.id!==c.id);
   else { const p=S.ai[owner-1]; p.cities=p.cities.filter(x=>x.id!==c.id); }
   log(c.name+' foi destruída'+(reason?' '+reason:'')+'.');
+  if(owner===0) hist('Perdeu '+c.name+(reason?' ('+reason+')':'')+'.');
   sfx('alert');
   if(c.capital){
     if(owner===0){ S.over='defeat'; log('Sua capital foi destruída.'); }
@@ -1218,12 +1367,14 @@ function declareWar(a,b){
   if(r.war) return;
   r.war=true; r.pacto=false; r.comercio=false; r.alianca=false; r.conf=Math.min(r.conf,-30);
   log(pname(a)+' declarou guerra a '+pname(b)+'.');
+  if(a===0||b===0) hist('Declarou guerra a '+pname(a===0?b:a)+'.');
   sfx('alert');
 }
 function makePeace(a,b){
   const r=relGet(a,b);
   r.war=false; r.conf=Math.max(r.conf,-20);
   log(pname(a)+' e '+pname(b)+' firmaram a paz.');
+  if(a===0||b===0) hist('Fez paz com '+pname(a===0?b:a)+'.');
 }
 function wouldAccept(aiPid,fromPid,type){
   const r=relGet(aiPid,fromPid);
@@ -1235,6 +1386,7 @@ function wouldAccept(aiPid,fromPid,type){
   return false;
 }
 function applyDeal(a,b,type){
+  if(a===0||b===0 && type!=='paz') hist('Acordo com '+pname(a===0?b:a)+': '+({pacto:'pacto de não-agressão',comercio:'comércio',alianca:'aliança'}[type]||type)+'.');
   const r=relGet(a,b);
   if(type==='pacto'){ r.pacto=true; r.pactTurn=S.turn; log(pname(a)+' e '+pname(b)+' assinaram pacto de não-agressão.'); }
   if(type==='comercio'){ r.comercio=true; log(pname(a)+' e '+pname(b)+' fecharam comércio.'); }
@@ -1248,6 +1400,7 @@ function breakPact(pid){
   r.pacto=false; r.comercio=false; r.alianca=false;
   if(recent){ r.conf-=50; r.traitorUntil=S.turn+20; log('Pacto quebrado logo após assinado: '+pname(pid)+' marcou sua tribo como traidora.'); }
   else { r.conf-=30; log('Pacto com '+pname(pid)+' quebrado.'); }
+  hist('Quebrou o pacto com '+pname(pid)+'.');
 }
 function proposeToAI(pid,type){
   if(!wouldAccept(pid,0,type)){ log(pname(pid)+' recusou a proposta de '+type+'.'); return; }
@@ -1335,7 +1488,7 @@ const AI_STAGES=[
 function shuffleArr(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function aiCount(c,type){ return buildingsList().filter(o=>o.b.cid===c.id && (type===undefined || o.b.type===type)).length; }
 function aiCityScore(c){
-  return buildingsList().filter(o=>o.b.cid===c.id && (o.b.pid||0)===c.pid && o.b.type!=='base' && o.b.type!=='casa' && o.b.type!=='estrada' && inBase(o.x,o.y,c)).reduce((s,o)=>s+(o.b.level||1),0);
+  return buildingsList().filter(o=>o.b.cid===c.id && (o.b.pid||0)===c.pid && o.b.type!=='base' && o.b.type!=='casa' && o.b.type!=='estrada' && o.b.type!=='ruina' && inBase(o.x,o.y,c)).reduce((s,o)=>s+(o.b.level||1),0);
 }
 function aiCanPay(p,c){ for(const k in c) if((p.res[k]||0)<c[k]) return false; return true; }
 function aiPay(p,c){ for(const k in c) p.res[k]-=c[k]; }
@@ -1452,14 +1605,16 @@ function checkEnd(){
 function tick(){
   if(!S || S.over==='defeat') return;
   S.turn++;
-  const pr={...S.res}; S.prevRes=pr;
+  const pr={...S.res}; S.prevRes=pr; S.ledger={};
   invalidate();
+  healTick();
   computeNetwork();
   eventsTick();
   assignWorkers(); produce(); consume(); births(); militaryTick(); happinessAll();
   diplomacyTick();
   aiTick();
   S.delta={}; for(const k in S.res) S.delta[k]=(S.res[k]||0)-(pr[k]||0);
+  popMilestones();
   computeContacts(); checkEnd();
   if(opts.autosave) autosave();
   updateMusic(false);
@@ -1589,6 +1744,28 @@ function closePause(){
   renderAll();
 }
 function setScale(v){ opts.scale=v; saveOpts(); applyScale(); renderModal(); }
+const FLOW_NAME={pop:'Consumo da população',impostos:'Impostos',exercito:'Manutenção do exército'};
+function iconImg(icon,col){ return `<img src="${iconCanvas(icon,col,2).toDataURL()}" width="16" height="16" style="vertical-align:middle;image-rendering:pixelated">`; }
+function srcInfo(src){
+  if(DEF[src]) return {n:DEF[src].n, img:iconImg(DEF[src].icon,DEF[src].col)};
+  const ic={pop:['food','#5fbf4a'],impostos:['coin','#e0b84a'],exercito:['sword','#8a8a9a']}[src]||['gear','#999999'];
+  return {n:FLOW_NAME[src]||src, img:iconImg(ic[0],ic[1])};
+}
+const ALL_RES=['food','wood','stone','metal','carvao','tabua','lapida','aco','bens','science','ouro','petroleo','asfalto','combustivel'];
+function resBlock(k){
+  const L=(S.ledger&&S.ledger[k])||{};
+  const rows=Object.entries(L).filter(([,v])=>Math.abs(v)>0.05).sort((a,b)=>b[1]-a[1]);
+  const net=rows.reduce((s,[,v])=>s+v,0);
+  const sgn=v=>(v>=0?'+':'')+v.toFixed(1);
+  let h=`<div class="resbox"><div class="rhead">${shapeSvg(k)}<span>${RES_NAME[k]||k}</span><span class="rv">${Math.floor(S.res[k]||0)}</span><span class="${net>=0?'pos':'neg'}">${rows.length?sgn(net):'0'}</span></div>`;
+  for(const [src,v] of rows){ const i=srcInfo(src); h+=`<div class="rsrc">${i.img}<span>${i.n}</span><span class="v ${v>=0?'pos':'neg'}">${sgn(v)}</span></div>`; }
+  return h+`</div>`;
+}
+function trajHtml(){
+  const H=(S.hist||[]).slice().reverse().slice(0,30);
+  if(!H.length) return '<div style="color:#6b5a3a">Nada relevante ainda.</div>';
+  return H.map(e=>`<div class="tl"><span class="tn">Turno ${e.turn}</span>${e.t}</div>`).join('');
+}
 function renderModal(){
   const pop=document.getElementById('pop');
   if(!modal){ pop.style.display='none'; return; }
@@ -1596,57 +1773,74 @@ function renderModal(){
   if(modal==='pause'){
     pop.innerHTML=`<h3>Menu</h3>
       <button class="cbtn good" onclick="closePause()">Continuar</button>
-      <div class="sec" style="margin-top:10px">Salvar jogo</div>
-      <input type="text" id="sv_name" maxlength="40" placeholder="Nome do salvamento" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #6b4a2a;border-radius:4px">
-      <button class="cbtn" onclick="act(()=>manualSave(document.getElementById('sv_name').value));renderModal()">Salvar</button>
       <button class="cbtn" onclick="modal='saves';renderModal()">Salvos</button>
       <button class="cbtn" onclick="modal='opts';renderModal()">Opções</button>
       <button class="cbtn sec2" onclick="modal=null;showTitle()">Voltar ao menu inicial</button>`;
   } else if(modal==='saves'){
     const a=getAuto(), list=getSaves();
-    let h=`<h3>Salvos</h3><div class="sec">Automáticos (3, em rotação)</div>`;
+    let h=`<h3>Salvos</h3>`;
+    if(screen==='game') h+=`<div class="stitle">Salvar agora</div><div class="saveform"><input type="text" id="sv_name2" maxlength="40" placeholder="Nome do salvamento"><button class="cbtn inl good" onclick="act(()=>manualSave(document.getElementById('sv_name2').value));renderModal()">Salvar</button></div>`;
+    h+=`<div class="stitle">Manuais</div>`;
+    if(!list.length) h+=`<div style="color:#6b5a3a">Nenhum salvamento manual.</div>`;
+    else {
+      h+=`<table class="tbl"><tr><th>Nome</th><th>Turno</th><th>Data</th><th></th></tr>`;
+      list.forEach((s,i)=>{ h+=`<tr><td><b>${s.name}</b></td><td>${s.turn}</td><td style="font-size:11px">${s.date}</td><td style="white-space:nowrap"><button class="cbtn inl" onclick="loadSave(getSaves()[${i}].data)">Carregar</button><button class="cbtn inl sec2" onclick="deleteSave('manual',${i})">Excluir</button></td></tr>`; });
+      h+=`</table>`;
+    }
+    h+=`<div class="stitle">Automáticos (3, em rotação)</div><table class="tbl"><tr><th>Slot</th><th>Turno</th><th>Data</th><th></th></tr>`;
     a.slots.forEach((s,i)=>{
-      h+=`<div class="saverow"><div class="nm">${s?s.name:'Vazio'}<div class="dt">${s?s.date:''}</div></div>`;
-      if(s) h+=`<button class="cbtn inl" onclick="loadSave(getAuto().slots[${i}].data)">Carregar</button><button class="cbtn inl sec2" onclick="deleteSave('auto',${i})">Excluir</button>`;
-      h+=`</div>`;
+      if(s) h+=`<tr><td>${s.name}</td><td>${s.turn}</td><td style="font-size:11px">${s.date}</td><td style="white-space:nowrap"><button class="cbtn inl" onclick="loadSave(getAuto().slots[${i}].data)">Carregar</button><button class="cbtn inl sec2" onclick="deleteSave('auto',${i})">Excluir</button></td></tr>`;
+      else h+=`<tr><td colspan="4" style="color:#6b5a3a">Slot ${i+1} vazio</td></tr>`;
     });
-    h+=`<div class="sec">Manuais</div>`;
-    if(!list.length) h+=`<div>Nenhum salvamento manual.</div>`;
-    list.forEach((s,i)=>{
-      h+=`<div class="saverow"><div class="nm">${s.name}<div class="dt">Turno ${s.turn} · ${s.date}</div></div>
-        <button class="cbtn inl" onclick="loadSave(getSaves()[${i}].data)">Carregar</button>
-        <button class="cbtn inl sec2" onclick="deleteSave('manual',${i})">Excluir</button></div>`;
-    });
-    h+=`<button class="cbtn" onclick="${back}">Voltar</button>`;
+    h+=`</table><button class="cbtn" onclick="${back}">Voltar</button>`;
     pop.innerHTML=h;
   } else if(modal==='stats'){
-    const d=S.delta||{}, g=S.gained||{};
-    const row=k=>{
-      const v=k==='morale'?S.morale:(S.res[k]||0), dl=d[k]||0, pr=g[k]||0;
-      return `<div style="margin:4px 0">${shapeSvg(k)} <b>${Math.floor(v)}</b> <span style="color:${dl>=0?'#2a6a2a':'#a0401a'}">(${dl>=0?'+':''}${dl.toFixed(1)} no último turno)</span> <span style="color:#666">· produzido ${pr.toFixed(1)}</span></div>`;
-    };
+    const c=capital();
     pop.innerHTML=`<h3>Estatísticas</h3>
-      <div class="sec">Recursos</div>${['food','wood','stone','metal','ouro','morale'].map(row).join('')}
-      <div class="sec">População</div>Total ${totalPop()} / ${capPop()} · Felicidade ${capital().happy}
+      <div class="stitle">Recursos · saldo por turno</div>
+      ${ALL_RES.map(resBlock).join('')}
+      <div class="resbox"><div class="rhead">${shapeSvg('morale')}<span>Moral</span><span class="rv">${Math.floor(S.morale)}</span></div></div>
+      <div class="stitle">População</div>
+      <table class="tbl"><tr><th>Pessoas</th><th>Capacidade</th><th>Felicidade</th></tr><tr><td>${totalPop()}</td><td>${capPop()}</td><td>${c.happy}</td></tr></table>
+      <div class="stitle">Trajetória</div>${trajHtml()}
       <button class="cbtn" onclick="modal=null;renderAll()">Voltar</button>`;
   } else if(modal==='help'){
-    pop.innerHTML=`<h3>Ajuda e atalhos</h3>
-      <div class="sec">Tempo</div>Espaço: pausar ou continuar · 1, 2, 3: velocidade · +: passar um turno<br>
-      <div class="sec">Mapa</div>Arrastar: mover · Roda do mouse: zoom · Setas: mover a câmera · Minimapa: clique para ir até a área<br>
-      <div class="sec">Ações</div>Clique: selecionar · Tab: recolher ou mostrar o painel de construção · Q: cancelar construção · Esc: fechar tudo · Clique direito: cancelar ferramenta<br>
+    pop.innerHTML=`<h3>Ajuda</h3>
+      <div class="stitle">Atalhos</div>
+      <div class="kgrid">
+        <div><kbd>Espaço</kbd> pausar / continuar</div><div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> velocidade</div>
+        <div><kbd>+</kbd> passar um turno</div><div><kbd>Tab</kbd> mostrar / recolher construções</div>
+        <div><kbd>Q</kbd> cancelar construção</div><div><kbd>Esc</kbd> fechar tudo</div>
+        <div><kbd>Setas</kbd> mover a câmera</div><div>Roda do mouse: zoom</div>
+        <div>Arrastar: mover o mapa</div><div>Clique direito: cancelar</div>
+      </div>
+      <div class="stitle">Primeiros passos</div>
+      <div class="step"><span class="n">1</span><span>Construa <b>Casas</b> perto da base. Elas trazem pessoas.</span></div>
+      <div class="step"><span class="n">2</span><span>Ligue as construções à base com <b>Estradas</b>. Sem estrada, a produção cai pela metade.</span></div>
+      <div class="step"><span class="n">3</span><span>Ponha <b>Cabanas</b> de comida e de recursos perto do que elas precisam.</span></div>
+      <div class="step"><span class="n">4</span><span>Suba o nível da base para liberar novas construções.</span></div>
+      <div class="stitle">Dicas</div>
+      <table class="tbl"><tr><th>Quero</th><th>Faço</th></tr>
+        <tr><td>Nascer gente</td><td>Comida acima de 20 e felicidade 55 ou mais</td></tr>
+        <tr><td>Subir a felicidade</td><td>Altar, Escola, Templo, Hospital e casas evoluídas</td></tr>
+        <tr><td>Evitar penalidades</td><td>Bombeiros e Polícia</td></tr>
+        <tr><td>Produzir mais</td><td>Marque ★ nas construções importantes, para receberem trabalhadores primeiro</td></tr>
+        <tr><td>Bens e aço</td><td>Serraria, Mina e Fundição; depois a Fábrica</td></tr>
+      </table>
       <button class="cbtn" onclick="modal=null;renderAll()">Voltar</button>`;
+  } else if(modal==='confirm' && pendingMove){
+    const pm=pendingMove;
+    pop.innerHTML=`<h3>${pm.title}</h3><div style="margin-bottom:10px">${pm.text}</div>
+      <button class="cbtn sec2" onclick="runPending()">${pm.ok}</button>
+      <button class="cbtn" onclick="pendingMove=null;modal=null;renderAll()">Cancelar</button>`;
   } else if(modal==='opts'){
     const SCALES=[{l:'1x',v:1},{l:'2x',v:1.15},{l:'3x',v:1.3}];
     const sc=SCALES.map(o=>`<div class="opt ${Math.abs(opts.scale-o.v)<0.01?'on':''}" onclick="setScale(${o.v})">${o.l}</div>`).join('');
     pop.innerHTML=`<h3>Opções</h3>
-      <div class="sec">Escala dos menus</div><div class="opts">${sc}</div>
-      <div class="sec">Salvamento</div>
-      <label><input type="checkbox" ${opts.autosave?'checked':''} onchange="opts.autosave=this.checked;saveOpts()"> Automático por turno (3 slots em rotação)</label>
-      <div class="sec">Áudio</div>
-      <label><input type="checkbox" ${opts.music?'checked':''} onchange="opts.music=this.checked;saveOpts();updateMusic(false)"> Música</label><br>
-      Volume da música <input type="range" class="slider" min="0" max="1" step="0.05" value="${opts.musicVol}" oninput="opts.musicVol=+this.value;saveOpts();updateMusic(false)"><br>
-      <label><input type="checkbox" ${opts.sound?'checked':''} onchange="opts.sound=this.checked;saveOpts()"> Efeitos sonoros</label><br>
-      Volume dos efeitos <input type="range" class="slider" min="0" max="1" step="0.05" value="${opts.sfxVol}" oninput="opts.sfxVol=+this.value;saveOpts();if(sGain)sGain.gain.value=opts.sfxVol"><br>
+      <div class="orow"><div class="lbl">Tamanho da tela<small>Escala dos menus e botões</small></div><div class="opts" style="margin:0">${sc}</div></div>
+      <div class="orow"><div class="lbl">Salvar a cada turno<small>3 slots automáticos em rotação</small></div><div class="ctl"><input type="checkbox" ${opts.autosave?'checked':''} onchange="opts.autosave=this.checked;saveOpts()"></div></div>
+      <div class="orow"><div class="lbl">Música<small>Piano relaxante</small></div><div class="ctl"><input type="checkbox" ${opts.music?'checked':''} onchange="opts.music=this.checked;saveOpts();updateMusic(false)"><input type="range" class="slider" style="width:140px" min="0" max="1" step="0.05" value="${opts.musicVol}" oninput="opts.musicVol=+this.value;saveOpts();updateMusic(false)"></div></div>
+      <div class="orow"><div class="lbl">Efeitos sonoros<small>Sons de construir, colher e combater</small></div><div class="ctl"><input type="checkbox" ${opts.sound?'checked':''} onchange="opts.sound=this.checked;saveOpts()"><input type="range" class="slider" style="width:140px" min="0" max="1" step="0.05" value="${opts.sfxVol}" oninput="opts.sfxVol=+this.value;saveOpts();if(sGain)sGain.gain.value=opts.sfxVol"></div></div>
       <button class="cbtn" onclick="${back}">Voltar</button>`;
   }
   pop.style.display='block';
@@ -1688,6 +1882,8 @@ function drawGroup(sx,sy,g){
   ctx.strokeStyle=sel?'#ffd84a':'#1e1a14'; ctx.lineWidth=sel?2:1; ctx.stroke();
   ctx.fillStyle=pid===0?'#2a1a05':'#ffffff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(String(n),sx+T/2,sy+T/2+1);
+  const mx=groupHpMax(g), hp=g.hp==null?mx:g.hp;
+  if(hp<mx){ const f=Math.max(0,hp/mx); ctx.fillStyle='#000'; ctx.fillRect(sx+3,sy+T-4,T-6,3); ctx.fillStyle=f>0.5?'#5fbf4a':f>0.25?'#e0b84a':'#d24a3a'; ctx.fillRect(sx+3,sy+T-4,(T-6)*f,3); }
   ctx.textAlign='start'; ctx.textBaseline='alphabetic';
 }
 function drawTile(x,y){
@@ -1706,6 +1902,7 @@ function drawTile(x,y){
   if(tile.t==='rio'){ ctx.fillStyle='#5a9ad8'; ctx.fillRect(sx+4,sy+8,16,2); ctx.fillRect(sx+2,sy+16,18,2); }
   if(tile.b){
     const b=tile.b, d=DEF[b.type]||{col:'#c9a24a',icon:'fire'}, pid=b.pid||0;
+    if(b.type==='ruina'){ ctx.fillStyle='#0b0b0b'; ctx.fillRect(sx+1,sy+1,T-2,T-2); ctx.fillStyle='#3a3a3a'; ctx.fillRect(sx+5,sy+6,4,3); ctx.fillRect(sx+13,sy+13,5,3); return; }
     if(b.type==='estrada'){ drawRoad(sx,sy,x,y); }
     else {
       let col;
@@ -1727,6 +1924,13 @@ function drawTile(x,y){
   const g=groupAt(x,y);
   if(g) drawGroup(sx,sy,g);
 }
+function drawHpBar(x,y){
+  const t=S.grid[y][x], b=t.b; if(!b||b.type==='ruina'||b.hp==null||!seen(x,y)) return;
+  const mx=bMaxHp(b); if(b.hp>=mx) return;
+  const f=Math.max(0,b.hp/mx), sx=x*T-cam.x, sy=y*T-cam.y;
+  ctx.fillStyle='#000'; ctx.fillRect(sx+2,sy+T-5,T-4,3);
+  ctx.fillStyle=f>0.5?'#5fbf4a':f>0.25?'#e0b84a':'#d24a3a'; ctx.fillRect(sx+2,sy+T-5,(T-4)*f,3);
+}
 function draw(){
   if(!S) return;
   ctx.setTransform(1,0,0,1,0,0);
@@ -1735,6 +1939,7 @@ function draw(){
   const x0=Math.max(0,Math.floor(cam.x/T)), y0=Math.max(0,Math.floor(cam.y/T));
   const x1=Math.min(N-1,Math.ceil((cam.x+cv.width/Z)/T)), y1=Math.min(N-1,Math.ceil((cam.y+cv.height/Z)/T));
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) drawTile(x,y);
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) drawHpBar(x,y);
   const sg=groupById(S.selGroup);
   if(sg){
     ctx.strokeStyle='rgba(255,216,74,.5)'; ctx.lineWidth=1;
@@ -1880,7 +2085,7 @@ function renderCard(){
   if(g){
     const owner=gPid(g);
     let comp=Object.keys(g.units).map(t=>`${UNITS[t].n} x${g.units[t]}`).join(', ');
-    let html=`<h4>Grupo de ${pname(owner)}</h4>${comp}<br>Espaço ${groupSpace(g)} / ${GROUP_MAX} · Poder ${groupPower(g)}<br>`;
+    let html=`<h4>Grupo de ${pname(owner)}</h4>${comp}<br>Espaço ${groupSpace(g)} / ${GROUP_MAX} · Poder ${groupPower(g)}<br>Vida ${Math.round(g.hp==null?groupHpMax(g):g.hp)} / ${groupHpMax(g)}<br>`;
     if(owner===0){
       const mv=S.moveMode&&S.selGroup===g.id;
       html+=cbtn('Agrupar',`S.selGroup=${g.id};S.moveMode=false`,(S.selGroup===g.id&&!mv)?'on':'');
@@ -1896,6 +2101,13 @@ function renderCard(){
   const pid=b.pid||0;
   const d=DEF[b.type];
   let html='';
+  if(b.type==='ruina'){
+    const od=DEF[b.orig];
+    html=`<h4>Ruína</h4>${od?od.n:(b.orig==='base'?'Capital':'Construção')} destruída.<br>`;
+    if(b.orig!=='base' && od && (b.pid||0)===0){ const c2={}; for(const k in od.c) c2[k]=od.c[k]*2; html+=cbtn(`Reconstruir (${costStr(c2)})`,`reconstruir(${x},${y})`); }
+    else if((b.pid||0)!==0) html+=`<div style="color:#666">Ruína de ${pname(b.pid)}.</div>`;
+    card.innerHTML=html; card.style.display='block'; positionCard(); return;
+  }
   if(pid!==0 && b.type==='base'){
     const c=cityById(b.cid);
     const r=relGet(0,pid);
@@ -1925,6 +2137,7 @@ function renderCard(){
     if(d.power) html+=`Gera ${d.power} energia com carvão<br>`;
     if(d.need) html+=`Precisa de ${d.need==='rio'?'rio ao lado':d.need+' perto'}<br>`;
     if(d.elec) html+=`Energia: ${Math.round(power.ratio*100)}%<br>`;
+    html+=`Vida ${Math.round(b.hp==null?bMaxHp(b):b.hp)} / ${bMaxHp(b)}<br>`;
   }
   if(pid===0 && d && d.cat==='militar'){
     if(S.recruitOpen===`${x},${y}`){
@@ -2009,30 +2222,33 @@ function renderDip(){
   let h=`<h3>Diplomacia</h3>`;
   const others=livingPids().filter(q=>q!==0);
   const known=others.filter(q=>contactOf(0,q));
-  if(!known.length) h+=`<div>Nenhum povo conhecido ainda. Expanda para perto deles (até ${CONTACT_DIST} tiles de uma cidade).</div>`;
-  for(const q of known){
-    const r=relGet(0,q);
-    const st=r.war?'Em guerra':r.alianca?'Aliança':r.comercio?'Comércio':r.pacto?'Pacto de não-agressão':'Sem acordo';
-    const ai=S.ai[q-1];
-    const traitor = r.traitorUntil>S.turn ? ' · <span style="color:#a0401a">marcado como traidor até o turno '+r.traitorUntil+'</span>' : '';
-    h+=`<div class="sec">${pname(q)} ${ai?'('+ai.diff+')':''}</div>`;
-    h+=`Estado: ${st} · Confiança ${Math.round(r.conf)} · Forças ${armyCount(q)}${traitor}`;
-    if(!r.war){
-      if(!r.pacto) h+=cbtn('Propor pacto de não-agressão','proposeToAI('+q+',"pacto")');
-      if(r.pacto && !r.comercio) h+=cbtn('Propor comércio (+5 ouro/turno)','proposeToAI('+q+',"comercio")');
-      if(r.comercio && !r.alianca) h+=cbtn('Propor aliança','proposeToAI('+q+',"alianca")');
-      if(r.pacto) h+=cbtn('Quebrar pacto','breakPact('+q+')','sec2');
-      h+=cbtn('Declarar guerra','declareWar(0,'+q+')','sec2');
-    } else {
-      h+=cbtn('Propor paz','proposeToAI('+q+',"paz")','good');
+  const ib=(label,fn,extra)=>`<button class="cbtn inl ${extra||''}" onclick="act(()=>{${fn}})">${label}</button>`;
+  if(!known.length) h+=`<div class="stitle">Nenhum povo conhecido</div>Expanda até ${CONTACT_DIST} tiles de uma cidade deles para conhecê-los.`;
+  else {
+    h+=`<table class="tbl"><tr><th>Povo</th><th>Situação</th><th>Confiança</th><th>Forças</th></tr>`;
+    for(const q of known){
+      const r=relGet(0,q), ai=S.ai[q-1];
+      const st=r.war?'Em guerra':r.alianca?'Aliança':r.comercio?'Comércio':r.pacto?'Pacto':'Sem acordo';
+      const col=r.war?'#a0401a':(r.pacto||r.comercio||r.alianca)?'#2f6a3a':'#6b5a3a';
+      const traitor=r.traitorUntil>S.turn?`<div style="color:#a0401a;font-size:11px">Traidor até o turno ${r.traitorUntil}</div>`:'';
+      let acts='';
+      if(!r.war){
+        if(!r.pacto) acts+=ib('Pacto de não-agressão',`proposeToAI(${q},'pacto')`);
+        if(r.pacto && !r.comercio) acts+=ib('Comércio',`proposeToAI(${q},'comercio')`);
+        if(r.comercio && !r.alianca) acts+=ib('Aliança',`proposeToAI(${q},'alianca')`);
+        if(r.pacto) acts+=ib('Quebrar pacto',`breakPact(${q})`,'sec2');
+        acts+=ib('Declarar guerra',`declareWar(0,${q})`,'sec2');
+      } else acts+=ib('Propor paz',`proposeToAI(${q},'paz')`,'good');
+      h+=`<tr><td><span class="dot" style="background:${pcolor(q)}"></span><b>${pname(q)}</b><div style="font-size:11px;color:#6b5a3a">${ai?ai.diff:''}</div></td>
+        <td><span class="pill" style="background:${col}">${st}</span>${traitor}</td><td>${Math.round(r.conf)}</td><td>${armyCount(q)}</td></tr>
+        <tr><td colspan="4" style="padding-bottom:10px">${acts}</td></tr>`;
     }
+    h+=`</table>`;
   }
   if(S.inbox.length){
-    h+=`<div class="sec">Propostas recebidas</div>`;
-    S.inbox.forEach((it,i)=>{
-      h+=`<div>${pname(it.from)} propõe <b>${it.type}</b>.</div>`;
-      h+=cbtn('Aceitar',`acceptInbox(${i})`,'good')+cbtn('Recusar',`rejectInbox(${i})`,'sec2');
-    });
+    h+=`<div class="stitle">Propostas recebidas</div><table class="tbl"><tr><th>De</th><th>Proposta</th><th></th></tr>`;
+    S.inbox.forEach((it,i)=>{ h+=`<tr><td>${pname(it.from)}</td><td>${it.type}</td><td style="white-space:nowrap">${ib('Aceitar',`acceptInbox(${i})`,'good')}${ib('Recusar',`rejectInbox(${i})`,'sec2')}</td></tr>`; });
+    h+=`</table>`;
   }
   p.innerHTML=h; p.style.display='block';
 }
@@ -2043,21 +2259,28 @@ function renderEv(){
   if(!evDirty && evHover && p.style.display!=='none') return;
   evDirty=false;
   let h=`<h3>Eventos</h3>`;
+  const scopeTxt=s=>s==='global'?'Global':s==='regional'?'Regional':'Local';
+  h+=`<div class="stitle">Próximo turno</div>`;
   if(S.pending){
     const ev=EVENTS.find(e=>e.id===S.pending.id);
-    h+=`<div class="sec">Próximo turno</div><b>${ev.n}</b> (${ev.scope==='global'?'global':ev.scope==='regional'?'regional':'local'}): ${ev.desc}`;
-  } else h+=`<div class="sec">Próximo turno</div>Nenhum aviso no momento.`;
-  h+=`<div class="sec">Em andamento</div>`;
-  if(!S.active.length) h+=`Nenhum evento ativo.`;
-  for(const a of S.active){
-    const ev=EVENTS.find(e=>e.id===a.id);
-    h+=`<div><b>${a.n}</b> · até o turno ${a.end} · ${ev.desc}</div>`;
+    h+=`<table class="tbl"><tr><th>Evento</th><th>Alcance</th><th>Efeito</th></tr><tr><td><b>${ev.n}</b></td><td>${scopeTxt(ev.scope)}</td><td>${ev.desc}</td></tr></table>`;
+  } else h+=`<div>Nada previsto.</div>`;
+  h+=`<div class="stitle">Em andamento</div>`;
+  if(!S.active.length) h+=`<div>Nenhum evento ativo.</div>`;
+  else {
+    h+=`<table class="tbl"><tr><th>Evento</th><th>Até o turno</th><th>Efeito</th></tr>`;
+    for(const a of S.active){ const ev=EVENTS.find(e=>e.id===a.id); h+=`<tr><td><b>${a.n}</b></td><td>${a.end}</td><td>${ev.desc}</td></tr>`; }
+    h+=`</table>`;
   }
-  h+=`<div class="sec">Histórico recente</div>`;
+  h+=`<div class="stitle">Histórico</div>`;
   const hist=S.evHistory.slice(-8).reverse();
-  if(!hist.length) h+=`Nada ainda.`;
-  for(const e of hist){ const ev=EVENTS.find(x=>x.id===e.id); h+=`<div>Turno ${e.turn}: ${ev.n}</div>`; }
-  h+=`<div class="sec">Mitigação</div>Mercados reduzem a seca. Hospitais reduzem peste e epidemia. Bombeiros reduzem incêndios. Polícia reduz revoltas. Estádios dão felicidade.`;
+  if(!hist.length) h+=`<div>Nenhum evento ainda.</div>`;
+  else {
+    h+=`<table class="tbl"><tr><th>Turno</th><th>Evento</th></tr>`;
+    for(const e of hist){ const ev=EVENTS.find(x=>x.id===e.id); h+=`<tr><td>${e.turn}</td><td>${ev.n}</td></tr>`; }
+    h+=`</table>`;
+  }
+  h+=`<div class="stitle">O que reduz o dano</div><div class="kgrid"><div>Mercado → seca</div><div>Hospital → peste e epidemia</div><div>Bombeiros → incêndio</div><div>Polícia → revolta</div></div>`;
   p.innerHTML=h; p.style.display='block';
 }
 
@@ -2103,15 +2326,28 @@ function computeVis(){
 function seen(x,y){ return !VIS || VIS[y*N+x]===1; }
 // Ícones geométricos dos recursos (sem emojis).
 function shapeSvg(k){
-  const c={food:'#5fbf4a',wood:'#8a5a2a',stone:'#9aa0a6',metal:'#c0c8d8',ouro:'#e8c040',morale:'#d0a0e0'}[k]||'#dddddd';
-  let s;
-  if(k==='food') s=`<circle cx="7" cy="7" r="5" fill="${c}"/>`;
-  else if(k==='wood') s=`<rect x="2" y="2" width="10" height="10" fill="${c}"/>`;
-  else if(k==='stone') s=`<polygon points="7,1 13,13 1,13" fill="${c}"/>`;
-  else if(k==='metal') s=`<polygon points="7,1 13,7 7,13 1,7" fill="${c}"/>`;
-  else if(k==='ouro') s=`<circle cx="7" cy="7" r="6" fill="${c}" stroke="#7a5a10"/>`;
-  else s=`<rect x="1" y="5" width="12" height="4" fill="${c}"/>`;
-  return `<svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:middle">${s}</svg>`;
+  const MAP={food:['#5fbf4a','c'],wood:['#8a5a2a','r'],stone:['#9aa0a6','t'],metal:['#c0c8d8','d'],ouro:['#e8c040','o'],
+    morale:['#e06a8a','iv'],carvao:['#2a2a2a','e'],tabua:['#c08a4a','b'],lapida:['#d8d2c0','s'],aco:['#8fa8c0','x'],
+    bens:['#e07a2a','p'],science:['#5aa0e8','st'],petroleo:['#3a3a5a','dr'],asfalto:['#555555','h'],combustivel:['#f0a030','dm']};
+  const [c,sh]=MAP[k]||['#dddddd','r'];
+  const shapes={
+    c:`<circle cx="7" cy="7" r="5" fill="${c}"/>`,
+    r:`<rect x="2" y="2" width="10" height="10" fill="${c}"/>`,
+    t:`<polygon points="7,1 13,13 1,13" fill="${c}"/>`,
+    d:`<polygon points="7,1 13,7 7,13 1,7" fill="${c}"/>`,
+    o:`<circle cx="7" cy="7" r="6" fill="${c}" stroke="#7a5a10"/>`,
+    b:`<rect x="1" y="5" width="12" height="4" fill="${c}"/>`,
+    e:`<ellipse cx="7" cy="7" rx="6" ry="4" fill="${c}"/>`,
+    iv:`<polygon points="1,2 13,2 7,13" fill="${c}"/>`,
+    s:`<rect x="2" y="2" width="10" height="10" fill="${c}" stroke="#333" stroke-width="1"/>`,
+    x:`<path d="M5 1h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="${c}"/>`,
+    p:`<polygon points="7,1 13,5.5 11,13 3,13 1,5.5" fill="${c}"/>`,
+    st:`<polygon points="7,1 8.8,5 13,5.4 9.8,8.2 10.9,13 7,10.6 3.1,13 4.2,8.2 1,5.4 5.2,5" fill="${c}"/>`,
+    dr:`<path d="M7 1 C10 5 12 7 12 9.5 A5 5 0 0 1 2 9.5 C2 7 4 5 7 1 Z" fill="${c}"/>`,
+    h:`<polygon points="4,1 10,1 13,7 10,13 4,13 1,7" fill="${c}"/>`,
+    dm:`<polygon points="7,2 12,7 7,12 2,7" fill="none" stroke="${c}" stroke-width="2"/>`
+  };
+  return `<svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:middle">${shapes[sh]}</svg>`;
 }
 function resChip(k){ const v=k==='morale'?S.morale:(S.res[k]||0); return `<span class="rc" title="${RES_NAME[k]||'moral'}">${shapeSvg(k)}<b>${Math.floor(v)}</b></span>`; }
 // Minimapa: mostra só o que está explorado; clicar move a câmera.
