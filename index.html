@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>ATLAS - O DESPERTAR DAS CIVILIZAÇÕES</title>
+<title>Atlas - v16 (música, sons e escala)</title>
 <style>
 html,body{margin:0;height:100%;background:#1b2a3a;font-family:system-ui,sans-serif;color:#eee;overflow:hidden}
 #hud{position:fixed;top:0;left:0;right:0;height:38px;background:rgba(30,30,28,.94);display:flex;align-items:center;gap:12px;padding:0 12px;font-size:12px;z-index:5;white-space:nowrap;overflow:hidden}
@@ -31,6 +31,14 @@ canvas{display:block;width:100%;height:100%}
 #infotxt{font-size:12px;color:#ddd;padding:6px;max-width:600px}
 #card,#mgmt,#dip,#evp,#pop{position:fixed;display:none;background:#f3e6c4;color:#222;border:3px solid #6b4a2a;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.55);font-size:12px;z-index:10}
 #card{padding:10px 12px;width:250px}
+#card.unit{pointer-events:none;width:230px;padding:8px 10px}
+#card.unit .cbtn{pointer-events:auto}
+#card.unit:after{display:none}
+.urow{margin:3px 0}.udot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;border:1px solid #2a1a05;vertical-align:middle}
+.ustat{color:#6b5a3a;font-size:11px}.ulbl{font-size:11px;margin-top:5px}
+.ubar{height:6px;background:#d8c49a;border:1px solid #6b4a2a;border-radius:3px;margin:2px 0;overflow:hidden}
+.ubar i{display:block;height:100%;background:#7a9a4a}.ubar.hp i{background:#c04a3a}
+.uacts{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}.uwar{color:#a0401a;margin-top:4px}
 #card:after{content:"";position:absolute;bottom:-11px;left:50%;margin-left:-8px;border:8px solid transparent;border-top-color:#6b4a2a;border-bottom:0}
 #mgmt,#dip,#evp{left:50%;top:50%;transform:translate(-50%,-50%);width:580px;max-height:76vh;overflow:auto;padding:14px 16px;z-index:12}
 #pop{left:50%;top:50%;transform:translate(-50%,-50%);width:440px;max-height:80vh;overflow:auto;padding:16px 18px;z-index:60}
@@ -182,12 +190,15 @@ const DEF={
   quartel_moderno:{n:'Quartel Moderno',cat:'militar',icon:'shield',col:'#3a4a5a',c:{aco:60,lapida:30},cap:3,era:4,unique:true}
 };
 const UNITS={
-  cacador:{n:'Caçador',space:1,manut:0.5,acad:1,icon:'paw',col:'#a0703a',atk:4},
-  lanceiro:{n:'Lanceiro',space:1,manut:0.6,acad:2,icon:'sword',col:'#8a8a9a',atk:6},
-  arqueiro:{n:'Arqueiro',space:1,manut:0.7,acad:2,icon:'sword',col:'#6a8a4a',atk:7},
-  infantaria:{n:'Infantaria',space:2,manut:1.2,acad:3,icon:'shield',col:'#4a5a7a',atk:12},
-  blindado:{n:'Blindado',space:6,manut:2,acad:4,icon:'shield',col:'#3a4a3a',atk:16,req:'quartel_moderno'},
-  forca_aerea:{n:'Força Aérea',space:5,manut:2.5,acad:4,icon:'bolt',col:'#7a9ac0',atk:20,req:'basearea'}
+  cacador:{n:'Caçador',space:1,manut:0.5,acad:1,icon:'paw',col:'#a0703a',atk:4,def:2},
+  lanceiro:{n:'Lanceiro',space:1,manut:0.6,acad:2,icon:'sword',col:'#8a8a9a',atk:6,def:5},
+  arqueiro:{n:'Arqueiro',space:1,manut:0.7,acad:2,icon:'sword',col:'#6a8a4a',atk:7,def:2},
+  cavalaria:{n:'Cavalaria',space:2,manut:1.0,acad:3,icon:'paw',col:'#9a6a3a',atk:9,def:4,req:'quartel'},
+  infantaria:{n:'Infantaria',space:2,manut:1.2,acad:3,icon:'shield',col:'#4a5a7a',atk:12,def:8},
+  catapulta:{n:'Catapulta',space:3,manut:1.5,acad:2,icon:'bolt',col:'#7a6a4a',atk:3,def:1,siege:4,req:'academia'},
+  ariete:{n:'Aríete',space:3,manut:1.4,acad:2,icon:'shield',col:'#5a4a3a',atk:1,def:3,siege:5,req:'quartel'},
+  blindado:{n:'Blindado',space:6,manut:2,acad:4,icon:'shield',col:'#3a4a3a',atk:16,def:14,req:'quartel_moderno'},
+  forca_aerea:{n:'Força Aérea',space:5,manut:2.5,acad:4,icon:'bolt',col:'#7a9ac0',atk:20,def:6,req:'basearea'}
 };
 const TAX={baixo:{a:0.4,c:0.1,h:2,n:'Baixo'},padrao:{a:0.8,c:0.2,h:0,n:'Padrão'},alto:{a:1.2,c:0.3,h:-2,n:'Alto'}};
 const BASE_REQ={2:{score:3,cost:{wood:60,stone:40}},3:{score:8,cost:{stone:100,tabua:40,lapida:20}},4:{score:14,cost:{aco:100,lapida:60,bens:30}}};
@@ -441,8 +452,8 @@ function newGame(o){
   for(let i=0;i<nAi;i++){
     const f=AI_FR[i], ax=Math.round(f[0]*(N-1)), ay=Math.round(f[1]*(N-1));
     const id=S.nextId++, pid=i+1;
-    const cap={id,pid,name:AI_NAMES[i]+' (capital)',x:ax,y:ay,level:1,capital:true,adults:4,children:1,happy:50,tax:'padrao',starve:0};
-    S.ai.push({pid,name:AI_NAMES[i],color:AI_COLORS[i],diff:o.diff,res:{food:60,wood:60,stone:40,ouro:30,metal:0},lastDec:0,lastTrain:0,dead:false,cities:[cap]});
+    const cap={id,pid,name:AI_NAMES[i]+' (capital)',x:ax,y:ay,level:1,capital:true,adults:3,children:0,happy:50,tax:'padrao',starve:0};
+    S.ai.push({pid,name:AI_NAMES[i],color:AI_COLORS[i],diff:o.diff,res:{food:40,wood:40,stone:25,ouro:15,metal:0},lastDec:0,lastTrain:0,dead:false,cities:[cap]});
     g[ay][ax].b={type:'base',cid:id,pid,level:1,workers:0};
   }
   invalidate();
@@ -561,6 +572,9 @@ function groupsOf(pid){ return S.groups.filter(g=>gPid(g)===pid); }
 function groupSpace(g){ return Object.keys(g.units).reduce((s,t)=>s+UNITS[t].space*g.units[t],0); }
 function groupCount(g){ return Object.keys(g.units).reduce((s,t)=>s+g.units[t],0); }
 function groupPower(g){ return Object.keys(g.units).reduce((s,t)=>s+UNITS[t].atk*g.units[t],0); }
+function groupDef(g){ return Object.keys(g.units).reduce((s,t)=>s+(UNITS[t].def||0)*g.units[t],0); }
+// Poder contra construções: catapulta e aríete destroem prédios; o resto dá pouco dano.
+function groupSiege(g){ return Object.keys(g.units).reduce((s,t)=>{const u=UNITS[t]; return s+(u.siege?u.atk*u.siege:u.atk*0.3)*g.units[t];},0); }
 function groupAt(x,y){ return S.groups.find(g=>g.x===x&&g.y===y); }
 function groupById(id){ return S.groups.find(g=>g.id===id); }
 function armyCount(pid){ return groupsOf(pid).reduce((s,g)=>s+groupCount(g),0); }
@@ -606,7 +620,7 @@ function mergeGroups(srcId,dstId){
   S.selGroup=dstId;
 }
 function battle(a,b){
-  const pa=groupPower(a), pb=groupPower(b);
+  const pa=groupPower(a)+groupDef(a)*0.5, pb=groupPower(b)+groupDef(b)*0.5;
   const total=pa+pb||1;
   sfx('attack');
   if(pa>=pb){
@@ -708,7 +722,7 @@ function attackBuilding(g,x,y){
   if(b.type==='base'){ const c=cityById(b.cid); if(c) attackGroupOnCity(g,c); return; }
   if(g.movedTurn===S.turn){ log('Este grupo já agiu neste turno.'); return; }
   ensureHp(b);
-  b.hp-=groupPower(g)*0.6;
+  b.hp-=groupSiege(g)*0.6;
   g.movedTurn=S.turn; scaleGroup(g,0.85); damageGroup(g,0.05); pruneGroups(); sfx('attack');
   if(b.hp<=0){ log((DEF[b.type]?DEF[b.type].n:'Construção')+' de '+pname(b.pid)+' foi destruída.'); ruinTile(x,y,0); }
   else log('Construção de '+pname(b.pid)+' sofreu dano.');
@@ -1201,6 +1215,7 @@ function produce(){
     if(!isConn(o.x,o.y)) eff*=0.5;
     if(d.elec) eff*=power.ratio;
     eff*=evMul(o.b,o.x,o.y,d.out&&d.out.food?'food':'other');
+    eff*=cityMood(o.b.cid);
     if(d.inp){
       let ratio=1;
       for(const r in d.inp){ const need=d.inp[r]*f; if(need>0) ratio=Math.min(ratio,S.res[r]/need); }
@@ -1243,7 +1258,7 @@ function consume(){
 }
 function births(){
   for(const c of S.cities){
-    if(S.turn%2===0 && S.res.food>20 && c.happy>=55 && c.adults+c.children<capPop(c.id)){ c.children++; log('Nasceu uma criança em '+c.name+'.'); }
+    if((S.turn%2===0 || S.turn<(c.buffEnd||0)) && S.res.food>20 && c.happy>=55 && c.adults+c.children<capPop(c.id)){ c.children++; log('Nasceu uma criança em '+c.name+'.'); }
     if(S.turn%30===0 && c.children>0){ c.children--; c.adults++; }
   }
 }
@@ -1303,30 +1318,59 @@ function militaryTick(){
   S.queue=rest;
 }
 
+function enemyNear(c,r){
+  return S.groups.some(g=>(g.pid||0)!==(c.pid||0) && Math.abs(g.x-c.x)<=r && Math.abs(g.y-c.y)<=r);
+}
+function cityMood(cid){
+  const c=S.cities.find(x=>x.id===cid); if(!c) return 1;
+  let m=1;
+  if(S.turn<(c.buffEnd||0)) m*=1.15;
+  if(c.happy<40) m*=0.9;
+  return m;
+}
 function happinessAll(){
   for(const c of S.cities){
-    const over=Math.max(0,c.adults+c.children-capPop(c.id));
-    let h=55+TAX[c.tax].h;
-    if(S.active.some(e=>e.id==='festival'&&e.cityId===c.id)) h+=10;
+    const pop=c.adults+c.children, cap=capPop(c.id);
+    const over=Math.max(0,pop-cap);
+    let t=55+TAX[c.tax].h;
+    if(S.active.some(e=>e.id==='festival'&&e.cityId===c.id)) t+=10;
     for(const o of cityBuildings(c.id)){
       const b=o.b;
-      if(b.type==='altar') h+=5*b.level;
-      if(b.type==='escola') h+=3*b.level;
+      if(b.type==='altar') t+=5*b.level;
+      if(b.type==='escola') t+=3*b.level;
       if(b.type==='templo'){
-        if(S.religion==='fund') h+=10*b.level+10;
-        else if(S.religion!=='sec') h+=10*b.level;
+        if(S.religion==='fund') t+=10*b.level+10;
+        else if(S.religion!=='sec') t+=10*b.level;
       }
-      if(b.type==='hospital') h+=4*b.level;
-      if(b.type==='estadio') h+=10;
-      if(b.type==='casa') h+=(b.stage-1)*2;
+      if(b.type==='hospital') t+=4*b.level;
+      if(b.type==='estadio') t+=10;
+      if(b.type==='casa') t+=(b.stage-1)*2;
     }
     if(houses(c.id)>0){
-      if(netCount(c.net,'bombeiro')===0) h-=5;
-      if(netCount(c.net,'policia')===0) h-=5;
+      if(netCount(c.net,'bombeiro')===0) t-=5;
+      if(netCount(c.net,'policia')===0) t-=5;
     }
-    h-=(S.res.food<=0?20:0)+Math.min(10,over*2);
-    if(S.religion==='fund' && countType('templo',c.id)===0) h-=5;
-    c.happy=Math.max(0,Math.min(100,Math.round(h)));
+    t-=(S.res.food<=0?20:0)+Math.min(10,over*2);
+    if(S.religion==='fund' && countType('templo',c.id)===0) t-=5;
+    // pressões dinâmicas: quanto mais gente, menos certeza de felicidade
+    t-=Math.min(15,Math.floor(Math.max(0,pop-8)/3));
+    if(S.res.food<30) t-=5;
+    if(c.starve>0) t-=8;
+    if(enemyNear(c,6)) t-=10;
+    if(c.happy===undefined) c.happy=50;
+    c.happyTarget=Math.max(0,Math.min(100,Math.round(t)));
+    // inércia: sobe devagar (2/turno), cai mais rápido (4/turno)
+    const d=c.happyTarget-c.happy;
+    c.happy+= d>0 ? Math.min(2,d) : Math.max(-4,d);
+    // cidades lotadas sofrem instabilidade aleatória
+    if(pop>cap*0.9 && pop>10 && rnd()<0.25) c.happy-=1;
+    c.happy=Math.max(0,Math.min(100,Math.round(c.happy)));
+    // bônus temporário: dura 8 turnos, depois volta ao normal; some se a felicidade cair
+    if(c.happy<50) c.buffEnd=0;
+    if(c.happy>=75 && S.turn>=(c.buffCd||0)){
+      c.buffEnd=S.turn+8; c.buffCd=S.turn+20;
+      log(c.name+': povo animado, produção e crescimento +15% por 8 turnos.');
+    }
   }
 }
 
@@ -1598,6 +1642,7 @@ function diplomacyTick(){
 }
 function checkEnd(){
   if(S.over==='defeat') return;
+  if(!S.over && !S.tempoShown && S.turn>=600){ S.over='tempo'; S.tempoShown=true; }
   const aiAlive=S.ai.some(p=>!p.dead);
   if(!S.victoryShown && !aiAlive && S.cities.length>0){ S.over='victory'; S.victoryShown=true; }
 }
@@ -1773,6 +1818,9 @@ function renderModal(){
   if(modal==='pause'){
     pop.innerHTML=`<h3>Menu</h3>
       <button class="cbtn good" onclick="closePause()">Continuar</button>
+      <div class="sec" style="margin-top:10px">Salvar jogo</div>
+      <input type="text" id="sv_name" maxlength="40" placeholder="Nome do salvamento" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #6b4a2a;border-radius:4px">
+      <button class="cbtn" onclick="act(()=>manualSave(document.getElementById('sv_name').value));renderModal()">Salvar</button>
       <button class="cbtn" onclick="modal='saves';renderModal()">Salvos</button>
       <button class="cbtn" onclick="modal='opts';renderModal()">Opções</button>
       <button class="cbtn sec2" onclick="modal=null;showTitle()">Voltar ao menu inicial</button>`;
@@ -2039,7 +2087,7 @@ function renderBottom(){
     const upk=groupsOf(0).reduce((s,g)=>s+Object.keys(g.units).reduce((a,t)=>a+UNITS[t].manut*g.units[t],0),0)*cityMult();
     info.innerHTML=`Limite do exército: ${armyLimit()} espaços · Em uso: ${armySpace()} · Grupos no mapa: ${groupsOf(0).length}<br>
       Manutenção: ${upk.toFixed(1)} ouro/turno · Saldo: ${Math.floor(S.res.ouro)} ouro · Moral: ${Math.floor(S.morale)}<br>
-      Cada unidade aparece em um tile livre perto da capital. Grupos andam 1 tile por turno. Clique num grupo, depois num tile vizinho para mover. Clique em outro grupo para juntar (máx. ${GROUP_MAX} de espaço).`;
+      Cada unidade aparece em um tile livre perto da capital. O alcance depende da tropa (cavalaria e infantaria andam 2; blindados e aviões 3; estrada +1). Clique num grupo, depois num tile vizinho para mover. Clique em outro grupo para juntar (máx. ${GROUP_MAX} de espaço).`;
     grid.appendChild(info);
   }
   for(const k in DEF){
@@ -2082,18 +2130,32 @@ function renderCard(){
   cardDirty=false;
   if(!S.sel){ card.style.display='none'; return; }
   const {x,y}=S.sel, b=S.grid[y][x].b, g=groupAt(x,y);
+  card.className=g?'unit':'';
   if(g){
-    const owner=gPid(g);
-    let comp=Object.keys(g.units).map(t=>`${UNITS[t].n} x${g.units[t]}`).join(', ');
-    let html=`<h4>Grupo de ${pname(owner)}</h4>${comp}<br>Espaço ${groupSpace(g)} / ${GROUP_MAX} · Poder ${groupPower(g)}<br>Vida ${Math.round(g.hp==null?groupHpMax(g):g.hp)} / ${groupHpMax(g)}<br>`;
-    if(owner===0){
-      const mv=S.moveMode&&S.selGroup===g.id;
-      html+=cbtn('Agrupar',`S.selGroup=${g.id};S.moveMode=false`,(S.selGroup===g.id&&!mv)?'on':'');
-      html+=cbtn('Mover',`S.selGroup=${g.id};S.moveMode=!${mv}`,mv?'on':'');
-      if(mv) html+=`<span style="color:#2a6a2a">Clique nos tiles para mover. Clique em Mover de novo para parar.</span><br>`;
-      else if(S.selGroup===g.id) html+=`<span style="color:#2a6a2a">Clique em outro grupo para juntar.</span><br>`;
+    const owner=gPid(g), mine=owner===0, mv=S.moveMode&&S.selGroup===g.id;
+    const mx=groupHpMax(g), hp=Math.round(g.hp==null?mx:g.hp);
+    const rows=Object.keys(g.units).map(t=>{const u=UNITS[t];
+      return `<div class="urow"><span class="udot" style="background:${u.col}"></span><b>${u.n}</b> x${g.units[t]}<div class="ustat">ATQ ${u.atk} · DEF ${u.def||0}${u.siege?' · cerco x'+u.siege:''} · espaço ${u.space}</div></div>`;}).join('');
+    let html=`<h4>${mine?'Seu grupo':'Grupo de '+pname(owner)}</h4>${rows}
+      <div class="ulbl">Espaço ${groupSpace(g)} / ${GROUP_MAX}</div><div class="ubar"><i style="width:${Math.min(100,groupSpace(g)/GROUP_MAX*100)}%"></i></div>
+      <div class="ulbl">Vida ${hp} / ${mx}</div><div class="ubar hp"><i style="width:${Math.max(0,hp/mx*100)}%"></i></div>
+      <div class="ustat">Alcance ${moveRange(g)} tile(s) · Poder ${groupPower(g)} · Defesa ${groupDef(g)}</div>`;
+    if(mine){
+      html+=`<div class="uacts">`+cbtn('Mover',`S.selGroup=${g.id};S.moveMode=!${mv}`,mv?'on':'')+cbtn('Agrupar',`S.selGroup=${g.id};S.moveMode=false`,(S.selGroup===g.id&&!mv)?'on':'')+`</div>`;
+      if(mv) html+=`<div class="ustat">Clique num tile para andar. Estradas e alvos inimigos valem.</div>`;
+      const alvos=[];
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        const tx=g.x+dx, ty=g.y+dy;
+        if((dx||dy)&&tx>=0&&ty>=0&&tx<N&&ty<N&&dist(g.x,g.y,tx,ty)===1){
+          const en=enemyAt(tx,ty); if(en){
+            const nome=en.kind==='bld'?(DEF[S.grid[ty][tx].b.type]?DEF[S.grid[ty][tx].b.type].n:'Construção'):'Grupo';
+            alvos.push(cbtn('Atacar '+nome.toLowerCase()+' ('+pname(en.pid)+')',`S.selGroup=${g.id};moveSelected(${tx},${ty})`,'sec2'));
+          }
+        }
+      }
+      if(alvos.length) html+=`<div class="uacts">${alvos.join('')}</div>`;
     } else {
-      html+=`<span style="color:#a0401a">${relGet(0,owner).war?'Em guerra com você':'Não é um grupo seu'}</span>`;
+      html+=`<div class="uwar">${relGet(0,owner).war?'Em guerra com você':'Não é um grupo seu'}</div>`;
     }
     card.innerHTML=html; card.style.display='block'; positionCard(); return;
   }
@@ -2120,7 +2182,7 @@ function renderCard(){
     html=`<h4>${d?d.n:b.type}</h4>${pname(pid)}<br>`;
   } else if(b.type==='base'){
     const c=cityById(b.cid);
-    html=`<h4>${c.capital?'★ ':''}${c.name}</h4>Base Nível ${c.level}<br>Pessoas ${c.adults+c.children} / ${capPop(c.id)}<br>Felicidade ${c.happy}<br>`;
+    html=`<h4>${c.capital?'★ ':''}${c.name}</h4>Base Nível ${c.level}<br>Pessoas ${c.adults+c.children} / ${capPop(c.id)}<br>Felicidade ${c.happy} (tende a ${c.happyTarget??'-'})${S.turn<(c.buffEnd||0)?' · bônus de produção e crescimento até o turno '+c.buffEnd:''}<br>`;
     html+=cbtn('Gerenciamento',`openMgmt(${c.id})`);
   } else if(b.type==='casa'){
     html=`<h4>${STAGE_NAME[b.stage]}</h4>Estágio ${b.stage} / 4<br>Capacidade 4 pessoas<br>`;
@@ -2163,6 +2225,14 @@ function renderCard(){
 function positionCard(){
   const card=document.getElementById('card');
   if(!S||!S.sel||card.style.display==='none') return;
+  if(card.classList.contains('unit')){
+    const sx=(S.sel.x*T-cam.x)*Z, sy=(S.sel.y*T-cam.y)*Z, tw=T*Z;
+    const w=card.offsetWidth, h=card.offsetHeight;
+    let l=sx+tw+10; if(l+w>window.innerWidth-4) l=sx-w-10;
+    l=Math.max(4,l);
+    const t=Math.max(44,Math.min(window.innerHeight-h-4,sy+tw/2-h/2));
+    card.style.left=l+'px'; card.style.top=t+'px'; return;
+  }
   const sx=(S.sel.x*T-cam.x+T/2)*Z, sy=(S.sel.y*T-cam.y)*Z;
   let left=sx-card.offsetWidth/2, top=sy-card.offsetHeight-16;
   left=Math.max(4,Math.min(window.innerWidth-card.offsetWidth-4,left));
@@ -2288,7 +2358,11 @@ function renderOver(){
   const o=document.getElementById('over'), box=document.getElementById('overbox');
   if(!S || !S.over || screen!=='game'){ o.style.display='none'; return; }
   o.style.display='flex';
-  if(S.over==='victory'){
+  if(S.over==='tempo'){
+    box.innerHTML=`<h2>Fim do tempo</h2>Os 600 turnos terminaram.<br><br>
+      <button class="cbtn" onclick="S.over=null;renderAll()">Continuar observando o mundo</button>
+      <button class="cbtn sec2" onclick="showTitle()">Voltar ao menu inicial</button>`;
+  } else if(S.over==='victory'){
     box.innerHTML=`<h2>Vitória</h2>Todas as capitais rivais foram destruídas.<br><br>
       <button class="cbtn" onclick="S.over=null;renderAll()">Continuar observando o mundo</button>
       <button class="cbtn sec2" onclick="showTitle()">Voltar ao menu inicial</button>`;
@@ -2440,7 +2514,7 @@ window.addEventListener('mouseup',e=>{
             else log('Vocês não estão em guerra.');
           } else log('Só dá para atacar tiles vizinhos.');
           S.sel={x:p.x,y:p.y};
-        } else if(sel && S.moveMode && !here && !S.grid[p.y][p.x].b){
+        } else if(sel && S.moveMode && !here){
           moveSelected(p.x,p.y);
           S.sel={x:p.x,y:p.y};
         } else if(here && gPid(here)===0){
