@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Atlas - v16 (música, sons e escala)</title>
+<title>ATLAS - O DESPERTAR DAS CIVILIZAÇÕES</title>
 <style>
 html,body{margin:0;height:100%;background:#1b2a3a;font-family:system-ui,sans-serif;color:#eee;overflow:hidden}
 #hud{position:fixed;top:0;left:0;right:0;height:38px;background:rgba(30,30,28,.94);display:flex;align-items:center;gap:12px;padding:0 12px;font-size:12px;z-index:5;white-space:nowrap;overflow:hidden}
@@ -1818,9 +1818,6 @@ function renderModal(){
   if(modal==='pause'){
     pop.innerHTML=`<h3>Menu</h3>
       <button class="cbtn good" onclick="closePause()">Continuar</button>
-      <div class="sec" style="margin-top:10px">Salvar jogo</div>
-      <input type="text" id="sv_name" maxlength="40" placeholder="Nome do salvamento" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #6b4a2a;border-radius:4px">
-      <button class="cbtn" onclick="act(()=>manualSave(document.getElementById('sv_name').value));renderModal()">Salvar</button>
       <button class="cbtn" onclick="modal='saves';renderModal()">Salvos</button>
       <button class="cbtn" onclick="modal='opts';renderModal()">Opções</button>
       <button class="cbtn sec2" onclick="modal=null;showTitle()">Voltar ao menu inicial</button>`;
