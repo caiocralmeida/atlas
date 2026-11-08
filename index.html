@@ -272,7 +272,6 @@ body.bp-hidden #treebtn{bottom:106px}
 .tnode.sel{outline:2px solid #1f3f66;outline-offset:2px}
 .tdet{margin-top:12px;background:rgba(255,246,214,.7);border:1px solid var(--gold-dim);border-radius:4px;padding:10px;min-height:70px}
 .tdetT{font-weight:bold;color:var(--blue-ink);font-size:14px;margin-bottom:4px}
-#treebtn{}
 .thub{display:flex;flex-direction:column;align-items:center;gap:14px;margin:18px auto}
 .hbtn{width:150px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px solid var(--gold-dim);border-radius:6px;background:linear-gradient(#f6ecd0,#e2cf96);cursor:pointer;font-weight:bold;color:var(--blue-ink);font-size:14px}
 .hbtn:hover{box-shadow:0 0 0 2px var(--gold)}
@@ -387,6 +386,11 @@ const TAX={baixo:{a:0.4,c:0.1,h:2,n:'Baixo'},padrao:{a:0.8,c:0.2,h:0,n:'Padrão'
 const BASE_REQ={2:{score:3,cost:{wood:60,stone:40}},3:{score:8,cost:{stone:100,tabua:40,lapida:20}},4:{score:14,cost:{aco:100,lapida:60,bens:30}}};
 for(let L=5;L<=10;L++){ const k=L-4; BASE_REQ[L]={score:14+k*6,cost:{aco:100*k,lapida:60+30*k,bens:30+20*k,asfalto:20*k}}; }
 const HOUSE_MAX_LVL=[2,4,8,14];
+const CITY_SPECIALTIES={
+  agricola:{n:'Agrícola',desc:'+20% de comida produzida nesta cidade.'},
+  industrial:{n:'Industrial',desc:'+15% de recursos manufaturados nesta cidade.'},
+  military:{n:'Militar',desc:'Aumenta a defesa local conforme o nível da cidade.'}
+};
 const EVENTS=[
   {id:'seca',n:'Seca',lvl:1,scope:'regional',dur:10,desc:'Campos e pomares rendem 30% menos. Mercados reduzem o prejuízo.'},
   {id:'enchente',n:'Enchente',lvl:1,scope:'local',dur:0,desc:'Uma construção perto do rio é levada pela água.'},
@@ -451,7 +455,7 @@ const TECH_BONUS=[
 ];
 // Felicidade por construção e global
 const TECH_HAPPY_B=[
-  {tech:'mito',type:'altar',amt:5,n:'Mitologia'},
+  {tech:'mito',type:'altar',amt:4,n:'Mitologia'},
   {tech:'ritos',type:'templo',amt:4,n:'Ritos'},
   {tech:'fest',type:'estadio',amt:5,n:'Festivais'},
   {tech:'caridade',type:'hospital',amt:5,n:'Caridade'}
@@ -545,8 +549,15 @@ const ICONS={
   menu:["........","dddddddd","........","dddddddd","........","dddddddd","........","........"]
 };
 const PAL={d:'#1e1a14',w:'#eadcb0',l:'#ffffff',g:'#4f7a2a',o:'#e07a2a',y:'#ffd84a',s:'#9aa0a6'};
-const AI_NAMES=['Tribo Ocre','Clã Verde','Povo Azul','Nação Cinza','Liga Roxa','Confederação Marrom','Império Prata','Horda Vermelha'];
+const AI_NAMES=['Tribo Ocre','Clã Verde','Povo Azul','Nação Cinza','Facção Roxa','Aliança Marrom','Império Prata','Horda Vermelha'];
 const AI_COLORS=['#e0523a','#3aa0e0','#5ad05a','#b060e0','#ff7a1a','#30d0c0','#e070c0','#8a6a40'];
+const AI_DOCTRINES=[
+  {id:'military',n:'Militarista',specialty:'military',build:['quartel','academia','casa']},
+  {id:'science',n:'Científica',specialty:'industrial',build:['escola','universidade','academia']},
+  {id:'prosperity',n:'Próspera',specialty:'agricola',build:['casa','altar','mercado','coleta']},
+  {id:'industry',n:'Industrial',specialty:'industrial',build:['serraria','marmoraria','mina','fundicao']},
+  {id:'expansion',n:'Expansionista',specialty:'agricola',build:['casa','coleta','caca','lenhador','pedreira']}
+];
 const AI_FR=[[0.8,0.2],[0.8,0.8],[0.55,0.08],[0.55,0.92],[0.12,0.12],[0.12,0.88],[0.92,0.5],[0.5,0.5]];
 const SIZES=[{n:'Pequeno',size:40,ai:2},{n:'Médio',size:80,ai:4},{n:'Grande',size:120,ai:6},{n:'Gigante',size:160,ai:8}];
 const EMBLEMS=['O','#','^','+'];
@@ -578,7 +589,7 @@ function applyCosts(C){
 }
 // Valor de uma configuração na partida atual (cai no normal se faltar).
 function cf(k){ const C=S&&S.cfg; const v=C?C[k]:undefined; return (v===undefined||v===null)?PRESETS.normal[k]:v; }
-let creation={tribe:'Minha tribo',emblem:'O',sizeIdx:0,diff:'normal',mode:'tempo',preset:'normal',cfg:Object.assign({},PRESETS.normal)};
+let creation={tribe:'Minha tribo',emblem:'O',sizeIdx:0,diff:'normal',mode:'tempo',victory:'livre',preset:'normal',cfg:Object.assign({},PRESETS.normal)};
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 
 // ---------- Preferências ----------
@@ -759,7 +770,7 @@ function newGame(o){
      morale:100,religion:null,groups:[],gid:1,selGroup:null,renaming:false,queue:[],log:[],
      cities:[{id:1,pid:0,name:'Fogueira Central',x:bx,y:by,level:1,capital:true,adults:3,children:1,happy:50,tax:'padrao',starve:0}],
      ai:[],rel:{},inbox:[],nextId:2,curCity:1,tool:null,sel:null,mgmt:null,dip:false,evp:false,tab:'urbano',grid:g,
-     over:null,victoryShown:false,active:[],pending:null,evHistory:[],diff:o.diff,autoSlot:0,cfg:C};
+    over:null,victoryShown:false,victory:o.victory||'livre',prosperityStreak:0,active:[],pending:null,evHistory:[],diff:o.diff,autoSlot:0,cfg:C};
   g[by][bx].b={type:'base',cid:1,pid:0,level:1,workers:0};
   for(const k of ['food','wood','stone','ouro']) S.res[k]=Math.round(S.res[k]*C.start);
   const nAi=C.ias?Math.min(AI_FR.length,C.ias):SIZES.find(s=>s.size===N).ai;
@@ -767,7 +778,7 @@ function newGame(o){
     const f=AI_FR[i], ax=Math.round(f[0]*(N-1)), ay=Math.round(f[1]*(N-1));
     const id=S.nextId++, pid=i+1;
     const cap={id,pid,name:AI_NAMES[i]+' (capital)',x:ax,y:ay,level:1,capital:true,adults:3,children:0,happy:50,tax:'padrao',starve:0};
-    S.ai.push({pid,name:AI_NAMES[i],color:AI_COLORS[i],diff:o.diff,res:{food:40,wood:40,stone:25,ouro:15,metal:0},lastDec:0,lastTrain:0,dead:false,cities:[cap]});
+    S.ai.push({pid,name:AI_NAMES[i],color:AI_COLORS[i],diff:o.diff,doctrine:AI_DOCTRINES[i%AI_DOCTRINES.length].id,scienceProgress:0,prosperityStreak:0,res:{food:40,wood:40,stone:25,ouro:15,metal:0},lastDec:0,lastTrain:0,dead:false,cities:[cap]});
     g[ay][ax].b={type:'base',cid:id,pid,level:1,workers:0};
   }
   invalidate();
@@ -1012,9 +1023,10 @@ function defensePower(c){
     const hp=b.hp==null?bMaxHp(b):b.hp;
     wall+= b.type==='muralha'? hp/25 : hp/120;
   }
-  return armyCount(owner)*2.5 + c.level*4 + (c.capital?4:0) + wall;
+  return armyCount(owner)*2.5 + c.level*4 + (c.capital?4:0) + wall + (c.specialty==='military'?c.level*5:0);
 }
 function attackGroupOnCity(g,c){
+  if(g.movedTurn===S.turn){ log('Este grupo já agiu neste turno.'); return false; }
   const owner=cityOwner(c), r=relGet(gPid(g),owner);
   const atk=groupPower(g), def=defensePower(c);
   g.movedTurn=S.turn;
@@ -1066,7 +1078,7 @@ function runPending(){
 }
 function moveNow(g,x,y){
   const res=tryStep(g,x,y);
-  if(res==='longe') log('Só dá para andar 1 tile por turno.');
+  if(res==='longe') log('O tile está fora do alcance de movimento.');
   else if(res==='ja') log('Este grupo já se moveu neste turno.');
   else if(res==='bloqueado') log('O terreno ou uma construção bloqueia o caminho.');
   else if(res==='ocupado') log('Já há suas unidades neste tile.');
@@ -1405,6 +1417,13 @@ function evolveCity(cid){
   pay(r.cost); c.level=next; log(c.name+' evoluiu para o Nível '+next+'.');
   hist(c.name+' subiu para o Nível '+next+'.');
 }
+function chooseCitySpecialty(cid,type){
+  const c=cityById(cid);
+  if(!c||(c.pid||0)!==0||c.level<3||c.specialty||!CITY_SPECIALTIES[type]) return;
+  c.specialty=type;
+  log(c.name+' escolheu a especialização '+CITY_SPECIALTIES[type].n+'.');
+  hist(c.name+' especializou-se em '+CITY_SPECIALTIES[type].n+'.');
+}
 
 // Trabalhadores: a cada turno, as construções com prioridade (★) são preenchidas primeiro;
 // só depois as demais. Quem está num trabalho sem prioridade é realocado se houver vaga prioritária.
@@ -1511,11 +1530,13 @@ function scheduleEvent(){
   const p={id:ev.id,at:S.turn+1,cityId:cityC.id,cx:cityC.x,cy:cityC.y};
   if(ev.id==='incendio'||ev.id==='epidemia'||ev.id==='terremoto'){ p.cx=cityC.x+Math.floor(Math.random()*7)-3; p.cy=cityC.y+Math.floor(Math.random()*7)-3; }
   S.pending=p;
+  modal='eventDecision';
   log('Aviso: '+ev.n+' pode acontecer no próximo turno.');
   sfx('alert');
 }
 function applyPending(){
   const p=S.pending; if(!p || p.at>S.turn) return;
+  if(!p.decided){ p.at=S.turn+1; modal='eventDecision'; return; }
   S.pending=null;
   const ev=EVENTS.find(e=>e.id===p.id);
   S.evHistory.push({turn:S.turn,id:ev.id});
@@ -1525,6 +1546,23 @@ function applyPending(){
   S.active.push(a);
   log('Evento: '+ev.n+'. '+ev.desc);
   if(ev.id==='incendio') evApplyInstant(p);
+}
+function resolveEventDecision(avoid){
+  const p=S&&S.pending;
+  if(!p||p.decided) return;
+  const ev=EVENTS.find(e=>e.id===p.id), cost=ev.lvl*20;
+  if(avoid && S.res.ouro<cost){ log('Ouro insuficiente para preparar a cidade.'); renderAll(); return; }
+  if(avoid){
+    S.res.ouro-=cost;
+    S.evHistory.push({turn:S.turn,id:ev.id,prevented:true});
+    hist('Preparou-se contra '+ev.n+'.');
+    log('Preparativos custaram '+cost+' ouro e impediram '+ev.n+'.');
+    S.pending=null;
+  } else {
+    p.decided=true;
+    log('A tribo decidiu enfrentar '+ev.n+'.');
+  }
+  modal=null; renderAll();
 }
 function eventsTick(){
   S.active=S.active.filter(e=>e.end>S.turn);
@@ -1599,6 +1637,9 @@ function produce(){
       for(const r in d.out){
         let amt=d.out[r]*eff*cf('gain');
         if(r==='food') amt*=foodMult();
+        const city=cityById(o.b.cid);
+        if(city&&city.specialty==='agricola'&&r==='food') amt*=1.2;
+        if(city&&city.specialty==='industrial'&&r!=='food'&&r!=='science') amt*=1.15;
         if(r==='food' && hasTech('agri')) amt*=1.1;
         if(r==='science' && boom) amt*=1.25;
         S.res[r]=(S.res[r]||0)+amt; led(r,o.b.type,amt); addCityProd(o.b.cid,r,amt);
@@ -1764,7 +1805,7 @@ function destroyCity(c,reason,attackerPid){
   if(owner===0) hist('Perdeu '+c.name+(reason?' ('+reason+')':'')+'.');
   sfx('alert');
   if(c.capital){
-    if(owner===0){ S.over='defeat'; log('Sua capital foi destruída.'); }
+    if(owner===0){ S.over='defeat'; S.winnerPid=attackerPid||null; modal=null; log('Sua capital foi destruída.'); }
     else eliminate(owner);
   } else if(owner===0 && S.cities.length===0){ S.over='defeat'; }
   computeNetwork(); computeContacts();
@@ -1951,7 +1992,13 @@ function aiEconomyTickRaw(p){
   for(const o of buildingsList()){
     if((o.b.pid||0)!==p.pid) continue;
     const d=DEF[o.b.type]; if(!d||!d.out) continue;
-    for(const k in d.out) r[k]=(r[k]||0)+d.out[k]*0.25*(o.b.level||1);
+    const city=cityById(o.b.cid);
+    for(const k in d.out){
+      let amt=d.out[k]*0.25*(o.b.level||1);
+      if(city&&city.specialty==='agricola'&&k==='food') amt*=1.2;
+      if(city&&city.specialty==='industrial'&&k!=='food'&&k!=='science') amt*=1.15;
+      r[k]=(r[k]||0)+amt;
+    }
   }
   r.food-=adultsSum*0.25;
   if(r.food<0) r.food=0;
@@ -1964,6 +2011,7 @@ function aiEconomyTickRaw(p){
 function aiBuildTick(p){
   if(p.dead||!p.cities.length) return;
   for(const c of p.cities){
+    if(c.level>=3&&!c.specialty) c.specialty=(AI_DOCTRINES.find(d=>d.id===p.doctrine)||AI_DOCTRINES[0]).specialty;
     if(c.level<10){
       const next=c.level+1, rq=BASE_REQ[next];
       if(aiCityScore(c)>=rq.score && aiCanPay(p,rq.cost)){ aiPay(p,rq.cost); c.level=next; log(c.name+' evoluiu para o Nível '+next+'.'); }
@@ -1981,9 +2029,14 @@ function aiBuildTick(p){
   const every=p.diff==='agressiva'?3:p.diff==='normal'?4:6;
   if(S.turn%every!==0) return;
   const city=p.cities.slice().sort((a,b)=>aiCount(a)-aiCount(b))[0];
+  const doctrine=AI_DOCTRINES.find(d=>d.id===p.doctrine)||AI_DOCTRINES[0];
   let kinds;
   if(rnd()<0.5) kinds=['casa'];
   else kinds=shuffleArr(aiBuildable(p).filter(k=>k!=='casa'));
+  kinds.sort((a,b)=>{
+    const pa=doctrine.build.indexOf(a), pb=doctrine.build.indexOf(b);
+    return (pa<0?99:pa)-(pb<0?99:pb);
+  });
   for(const k of kinds.slice(0,6)){
     const d=DEF[k]; if(!d||!aiCanPay(p,d.c)) continue;
     const spot=aiSpot(city,k); if(!spot) continue;
@@ -2000,9 +2053,27 @@ function aiTick(){
     aiBuildTick(p);
     if(S.turn%5===0) aiTryFound(p);
     aiTrain(p);
+    aiVictoryProgress(p);
     if(S.turn-p.lastDec>=DIFF_INTERVAL[p.diff]){ p.lastDec=S.turn; aiDecide(p); }
   }
   aiGroupsTurn();
+}
+function aiCityHappiness(p,c){
+  const pop=c.adults+c.children, capacity=Math.max(4,aiCount(c,'casa')*4);
+  let value=45+aiCount(c,'altar')*5+aiCount(c,'escola')*3+aiCount(c,'templo')*10+aiCount(c,'hospital')*4+aiCount(c,'estadio')*10;
+  if(pop>capacity) value-=Math.min(20,(pop-capacity)*2);
+  if((p.res.food||0)<30) value-=20;
+  return Math.max(0,Math.min(100,value));
+}
+function aiVictoryProgress(p){
+  if(p.doctrine==='science'){
+    const research=buildingsList().filter(o=>(o.b.pid||0)===p.pid&&['escola','universidade'].includes(o.b.type));
+    const levels=p.cities.reduce((n,c)=>n+c.level,0);
+    p.scienceProgress=(p.scienceProgress||0)+(levels*0.08+research.reduce((n,o)=>n+(o.b.type==='universidade'?0.75:0.25),0))*cf('aiGain');
+  }
+  const population=p.cities.reduce((n,c)=>n+c.adults+c.children,0);
+  const happiness=p.cities.length?p.cities.reduce((n,c)=>n+aiCityHappiness(p,c),0)/p.cities.length:0;
+  p.prosperityStreak=p.cities.length>=3&&population>=40&&happiness>=75?(p.prosperityStreak||0)+1:0;
 }
 
 function diplomacyTick(){
@@ -2024,8 +2095,25 @@ function diplomacyTick(){
 }
 function checkEnd(){
   if(S.over==='defeat') return;
+  const mode=S.victory||'livre';
+  const allowed=k=>mode==='livre'||mode===k;
   const aiAlive=S.ai.some(p=>!p.dead);
-  if(!S.victoryShown && !aiAlive && S.cities.length>0){ S.over='victory'; S.victoryShown=true; }
+  const pop=S.cities.reduce((n,c)=>n+c.adults+c.children,0);
+  const happy=S.cities.length?S.cities.reduce((n,c)=>n+c.happy,0)/S.cities.length:0;
+  const prosperous=S.cities.length>=3&&pop>=40&&happy>=75;
+  S.prosperityStreak=allowed('prosperity')&&prosperous?(S.prosperityStreak||0)+1:0;
+  let type=null;
+  if(allowed('domination')&&!aiAlive&&S.cities.length>0) type='domination';
+  else if(allowed('science')&&hasTech('ilum')) type='science';
+  else if(allowed('prosperity')&&S.prosperityStreak>=15) type='prosperity';
+  if(!S.victoryShown&&type){ S.over='victory'; S.victoryType=type; S.winnerPid=0; S.victoryShown=true; modal=null; return; }
+  if(S.victoryShown) return;
+  for(const p of S.ai){
+    if(p.dead) continue;
+    const aiType=allowed('science')&&p.doctrine==='science'&&p.scienceProgress>=420?'science'
+      :allowed('prosperity')&&p.prosperityStreak>=15?'prosperity':null;
+    if(aiType){ S.over='victory'; S.victoryType=aiType; S.winnerPid=p.pid; S.victoryShown=true; modal=null; return; }
+  }
 }
 
 function tick(){
@@ -2172,6 +2260,9 @@ function showCreate(){
     <div class="row"><div class="lbl">Modo de jogo</div><div class="opts">
       ${opt('mode','tempo','Tempo real',c.mode)}${opt('mode','turnos','Por turnos',c.mode)}
     </div></div>
+    <div class="row"><div class="lbl">Condição de vitória</div><div class="opts">
+      ${opt('victory','domination','Dominação',c.victory)}${opt('victory','science','Ciência',c.victory)}${opt('victory','prosperity','Prosperidade',c.victory)}${opt('victory','livre','Livre: todas',c.victory)}
+    </div><div class="ustat">Ciência: pesquise Iluminação. Prosperidade: 3 cidades, 40 pessoas e felicidade média 75 por 15 turnos.</div></div>
     <div class="row" style="display:flex;gap:8px;justify-content:space-between;margin-top:18px">
       <button class="cbtn" style="width:auto;padding:8px 18px" onclick="showTitle()">Voltar</button>
       <button class="cbtn good" style="width:auto;padding:8px 18px" onclick="startFromCreate()">Começar</button>
@@ -2189,7 +2280,7 @@ function startFromCreate(){
   document.getElementById('game').style.visibility='visible';
   document.getElementById('hud').style.display='flex';
   document.getElementById('bottom').style.display='block';
-  newGame({tribe:c.tribe.trim(),emblem:c.emblem,size:sz.size,diff:c.diff,mode:c.mode,cfg:c.cfg});
+  newGame({tribe:c.tribe.trim(),emblem:c.emblem,size:sz.size,diff:c.diff,mode:c.mode,victory:c.victory,cfg:c.cfg});
   if(sz.size>80) log('Mundos grandes podem rodar mais devagar.');
 }
 // Menu de pausa (botão "Menu" ou Esc). A pausa de velocidade é o "||".
@@ -2254,6 +2345,36 @@ function renderModal(){
     });
     h+=`</table><button class="cbtn" onclick="${back}">Voltar</button>`;
     pop.innerHTML=h;
+  } else if(modal==='victory'){
+    const mode=S.victory||'livre', enabled=k=>mode==='livre'||mode===k;
+    const names={domination:'Dominação',science:'Ciência',prosperity:'Prosperidade',livre:'Livre: todas'};
+    const bar=(value,max)=>`<div class="ubar"><i style="width:${Math.max(0,Math.min(100,value/max*100))}%"></i></div>`;
+    const rows=[];
+    if(enabled('domination')){
+      const total=S.ai.length, defeated=S.ai.filter(p=>p.dead).length;
+      rows.push(`<div class="resbox"><div class="rhead">Dominação <span class="rv">${defeated}/${total}</span></div>Capitais rivais derrotadas${bar(defeated,Math.max(1,total))}</div>`);
+    }
+    if(enabled('science')){
+      const tech=S.tech||{known:[],cur:null,prog:0}, current=TECHS.find(t=>t.id===tech.cur);
+      const rival=S.ai.filter(p=>!p.dead&&p.doctrine==='science').sort((a,b)=>b.scienceProgress-a.scienceProgress)[0];
+      const rivalProgress=rival?`<div class="ustat">Rival: ${rival.name} · ${Math.floor(rival.scienceProgress)}/420</div>`:'';
+      rows.push(`<div class="resbox"><div class="rhead">Ciência <span class="rv">${tech.known.length}/${TECHS.length}</span></div>Meta: Iluminação · Pesquisa atual: ${current?current.n+' ('+Math.floor(tech.prog||0)+'/'+techCost(current)+')':'nenhuma'}${bar(tech.known.length,TECHS.length)}${rivalProgress}</div>`);
+    }
+    if(enabled('prosperity')){
+      const pop=S.cities.reduce((n,c)=>n+c.adults+c.children,0);
+      const happy=S.cities.length?S.cities.reduce((n,c)=>n+c.happy,0)/S.cities.length:0;
+      const progress=Math.min(S.cities.length/3,pop/40,happy/75,(S.prosperityStreak||0)/15);
+      const rival=S.ai.filter(p=>!p.dead&&p.doctrine==='prosperity').sort((a,b)=>b.prosperityStreak-a.prosperityStreak)[0];
+      const rivalProgress=rival?`<div class="ustat">Rival: ${rival.name} · ${Math.min(15,rival.prosperityStreak)}/15 turnos</div>`:'';
+      rows.push(`<div class="resbox"><div class="rhead">Prosperidade <span class="rv">${Math.min(15,S.prosperityStreak||0)}/15 turnos</span></div>${S.cities.length}/3 cidades · ${pop}/40 pessoas · felicidade média ${Math.floor(happy)}/75${bar(progress,1)}${rivalProgress}</div>`);
+    }
+    pop.innerHTML=`<h3>Condições de vitória</h3><div class="ustat">Modalidade: ${names[mode]||names.livre}</div>${rows.join('')}`;
+  } else if(modal==='eventDecision'&&S.pending){
+    const ev=EVENTS.find(e=>e.id===S.pending.id), cost=ev.lvl*20;
+    pop.innerHTML=`<h3>Aviso: ${ev.n}</h3><div>${ev.desc}</div>
+      <div class="ustat" style="margin-top:8px">Pode acontecer no próximo turno. Preparar a cidade custa ${cost} ouro.</div>
+      <button class="cbtn good" ${S.res.ouro<cost?'disabled':''} onclick="resolveEventDecision(true)">Prevenir · ${cost} ouro</button>
+      <button class="cbtn sec2" onclick="resolveEventDecision(false)">Aceitar o risco</button>`;
   } else if(modal==='stats'){
     const tab=S.statsTab||'demo';
     const isImp=S.statsCity===undefined||S.statsCity==='imp'||!S.cities.some(x=>x.id===S.statsCity);
@@ -2338,6 +2459,7 @@ function renderModal(){
         <div><kbd>Espaço</kbd> pausar / continuar</div><div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> velocidade</div>
         <div><kbd>+</kbd> passar um turno</div><div><kbd>Tab</kbd> mostrar / recolher construções</div>
         <div><kbd>Q</kbd> cancelar construção</div><div><kbd>Esc</kbd> fechar tudo</div>
+        <div><kbd>V</kbd> condições de vitória</div>
         <div><kbd>Setas</kbd> mover a câmera</div><div>Roda do mouse: zoom</div>
         <div>Arrastar: mover o mapa</div><div>Clique direito: cancelar</div>
       </div>
@@ -2912,6 +3034,10 @@ function renderMgmt(){
   h+=`<div class="sec">Evolução</div>`;
   h+=`Nível ${c.level}${c.level<10?' · pontos conectados '+score+' / '+BASE_REQ[next].score+' para o Nível '+next:' · nível máximo'}`;
   if(c.level<10) h+=cbtn(`Evoluir para Nível ${next} (${costStr(BASE_REQ[next].cost)})`,`evolveCity(${c.id})`);
+  h+=`<div class="sec">Especialização</div>`;
+  if(c.level<3) h+=`Disponível no Nível 3.`;
+  else if(c.specialty){ const spec=CITY_SPECIALTIES[c.specialty]; h+=`<b>${spec.n}</b> · ${spec.desc}`; }
+  else for(const [key,spec] of Object.entries(CITY_SPECIALTIES)) h+=cbtn(`${spec.n} · ${spec.desc}`,`chooseCitySpecialty(${c.id},'${key}')`);
   h+=`<div class="sec">Impostos</div>`;
   h+=`Atual: ${TAX[c.tax].n}${lvl3?'':' · <span style="color:#a0401a">disponível no Nível 3</span>'}`;
   for(const k of ['baixo','padrao','alto']) h+=cbtn(TAX[k].n+` (adulto ${TAX[k].a}, criança ${TAX[k].c}, felicidade ${TAX[k].h>0?'+':''}${TAX[k].h})`,`setTax(${c.id},'${k}')`, c.tax===k?'on':'', !lvl3);
@@ -2943,7 +3069,7 @@ function renderDip(){
         if(r.pacto) acts+=ib('Quebrar pacto',`breakPact(${q})`,'sec2');
         acts+=ib('Declarar guerra',`declareWar(0,${q})`,'sec2');
       } else acts+=ib('Propor paz',`proposeToAI(${q},'paz')`,'good');
-      h+=`<tr><td><span class="dot" style="background:${pcolor(q)}"></span><b>${pname(q)}</b><div style="font-size:11px;color:#6b5a3a">${ai?ai.diff:''}</div></td>
+      h+=`<tr><td><span class="dot" style="background:${pcolor(q)}"></span><b>${pname(q)}</b><div style="font-size:11px;color:#6b5a3a">${ai?ai.diff+' · '+((AI_DOCTRINES.find(d=>d.id===ai.doctrine)||AI_DOCTRINES[0]).n):''}</div></td>
         <td><span class="pill" style="background:${col}">${st}</span>${traitor}</td><td>${Math.round(r.conf)}</td><td>${armyCount(q)}</td></tr>
         <tr><td colspan="4" style="padding-bottom:10px">${acts}</td></tr>`;
     }
@@ -2997,11 +3123,14 @@ function renderOver(){
       <button class="cbtn" onclick="S.over=null;renderAll()">Continuar observando o mundo</button>
       <button class="cbtn sec2" onclick="showTitle()">Voltar ao menu inicial</button>`;
   } else if(S.over==='victory'){
-    box.innerHTML=`<h2>Vitória</h2>Todas as capitais rivais foram destruídas.<br><br>
+    const names={domination:'Dominação',science:'Ciência',prosperity:'Prosperidade'};
+    const winner=S.winnerPid||0;
+    box.innerHTML=`<h2>${winner===0?'Vitória: '+(names[S.victoryType]||'Dominação'):pname(winner)+' venceu: '+(names[S.victoryType]||'Dominação')}</h2>${winner===0?'Condição de vitória alcançada.':'A civilização rival alcançou sua condição de vitória.'}<br><br>
       <button class="cbtn" onclick="S.over=null;renderAll()">Continuar observando o mundo</button>
       <button class="cbtn sec2" onclick="showTitle()">Voltar ao menu inicial</button>`;
   } else {
-    box.innerHTML=`<h2>Derrota</h2>Sua capital foi destruída. A partida terminou.<br><br>
+    const victor=S.winnerPid?`${pname(S.winnerPid)} venceu por Dominação. `:'';
+    box.innerHTML=`<h2>Derrota</h2>${victor}Sua capital foi destruída. A partida terminou.<br><br>
       <button class="cbtn sec2" onclick="showTitle()">Voltar ao menu inicial</button>`;
   }
 }
@@ -3143,6 +3272,7 @@ function renderAlerts(){
   if(S && screen==='game'){
     const ACT=[
       {n:'Árvores',ic:'book',on:modal==='arvore',f:()=>{ toggleArv(); renderAll(); }},
+      {n:'Vitória',ic:'flag',on:modal==='victory',f:()=>{ modal=modal==='victory'?null:'victory'; renderAll(); }},
       {n:'Diplomacia'+(S.inbox.length?' ('+S.inbox.length+')':''),ic:'flag',on:!!S.dip,f:()=>{ S.dip=!S.dip; S.evp=false; S.mgmt=null; dipDirty=true; renderAll(); }}
     ];
     rc.innerHTML=ACT.map((a,i)=>`<button class="ab ${a.on?'on':''}"><img src="${iconCanvas(a.ic,'#f3e6c4',3).toDataURL()}" width="32" height="32"><span>${a.n}</span></button>`).join('');
@@ -3390,6 +3520,7 @@ window.addEventListener('keydown',e=>{
   else if(e.key==='Tab'){ e.preventDefault(); toggleBottom(); }
   else if(e.key==='p'||e.key==='P'){ modal='producao'; renderAll(); }
   else if(e.key==='t'||e.key==='T'){ toggleArv(); renderAll(); }
+  else if(e.key==='v'||e.key==='V'){ modal=modal==='victory'?null:'victory'; renderAll(); }
   else if(e.key==='q'||e.key==='Q'){ S.tool=null; renderAll(); }
   else if(e.key==='+'){ tick(); }
   else if(e.key==='1'||e.key==='2'||e.key==='3'){ if(S.mode!=='turnos'){ S.speed=+e.key; S.prevSpeed=S.speed; renderAll(); } }
