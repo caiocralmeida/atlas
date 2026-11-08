@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Atlas - v37 PC</title>
+<title>Atlas - PC</title>
 <style>
 html,body{margin:0;height:100%;background:#1b2a3a;font-family:system-ui,sans-serif;color:#eee;overflow:hidden}
 #hud{position:fixed;top:0;left:0;right:0;height:38px;background:rgba(30,30,28,.94);display:flex;align-items:center;gap:12px;padding:0 12px;font-size:12px;z-index:5;white-space:nowrap;overflow:hidden}
@@ -294,6 +294,19 @@ body.bp-hidden #treebtn{bottom:106px}
 .dmb b{width:60px;text-align:right}
 .tbox.cultura{background:radial-gradient(#f6e7bd,#dcc07a);border:2px solid #7a5a1c}
 .tbox.fe{background:radial-gradient(#eadcf2,#c4aad6);border:2px solid #5a3a7a}
+.pres{display:flex;gap:6px;margin:6px 0}
+.pre{flex:1;padding:8px 4px;border:1px solid #6b4a2a;background:#efe2bf;color:#4a2e12;cursor:pointer;font-weight:bold;border-radius:4px}
+.pre.on{background:#4a2e12;color:#ffe9b0}
+.cgrp{font-weight:bold;color:#4a2e12;margin-top:10px;border-bottom:1px solid #a08a50;font-size:12px}
+.slid{display:grid;grid-template-columns:1fr 150px 70px;gap:8px;align-items:center;font-size:12px;padding:3px 0}
+.slid input{width:100%}
+.slid b{text-align:right}
+.slid{grid-template-columns:1.2fr 2fr 64px;gap:10px;font-size:14px;padding:6px 0}
+.slid input[type=range]{width:100%;height:24px;accent-color:#4a2e12}
+.slid select{background:#4a2e12;color:#ffe9b0;border:1px solid #6b4a2a;padding:6px;font-family:inherit;font-size:14px;border-radius:3px;width:100%}
+.slid select option{background:#2a1d12;color:#ffe9b0}
+.slid label{display:flex;gap:6px;align-items:center}
+#screen .panel{width:min(680px,94vw) !important}
 </style>
 </head>
 <body>
@@ -372,6 +385,7 @@ const UNITS={
 const BLD_DMG={cacador:1,lanceiro:1,arqueiro:1,cavalaria:2,infantaria:3,catapulta:6,ariete:9,blindado:5,forca_aerea:7};
 const TAX={baixo:{a:0.4,c:0.1,h:2,n:'Baixo'},padrao:{a:0.8,c:0.2,h:0,n:'Padrão'},alto:{a:1.2,c:0.3,h:-2,n:'Alto'}};
 const BASE_REQ={2:{score:3,cost:{wood:60,stone:40}},3:{score:8,cost:{stone:100,tabua:40,lapida:20}},4:{score:14,cost:{aco:100,lapida:60,bens:30}}};
+for(let L=5;L<=10;L++){ const k=L-4; BASE_REQ[L]={score:14+k*6,cost:{aco:100*k,lapida:60+30*k,bens:30+20*k,asfalto:20*k}}; }
 const HOUSE_MAX_LVL=[2,4,8,14];
 const EVENTS=[
   {id:'seca',n:'Seca',lvl:1,scope:'regional',dur:10,desc:'Campos e pomares rendem 30% menos. Mercados reduzem o prejuízo.'},
@@ -545,7 +559,26 @@ let S=null, cam={x:0,y:0}, hover=null, down=null, moved=false, cardHover=false, 
 let conn=new Map(), contacts=new Set(), BL=null;
 let screen='title', modal=null;
 let opts={autosave:true, scale:1, music:true, sound:true, musicVol:0.5, sfxVol:0.6};
-let creation={tribe:'Minha tribo',emblem:'O',sizeIdx:0,diff:'normal',mode:'tempo'};
+// Predefinições de partida. Cada chave é um multiplicador (1 = normal), exceto rio e ias.
+const PRESETS={
+  criativo:{gain:2,start:3,ore:1.6,nat:1.5,rio:true,cost:0.5,maint:0,bld:1.5,ucost:0.5,loss:0.2,ias:1,aiGain:0.5,aiDiff:'pacifista'},
+  leve:{gain:1.25,start:1.5,ore:1.2,nat:1.2,rio:true,cost:0.8,maint:0.5,bld:1.2,ucost:0.8,loss:0.7,ias:null,aiGain:0.8,aiDiff:'pacifista'},
+  normal:{gain:1,start:0.8,ore:1,nat:1,rio:true,cost:1.2,maint:1.3,bld:1,ucost:1.1,loss:1.2,ias:null,aiGain:1.1,aiDiff:'normal'},
+  elevado:{gain:0.85,start:0.8,ore:0.7,nat:0.8,rio:true,cost:1.3,maint:1.5,bld:0.8,ucost:1.3,loss:1.5,ias:null,aiGain:1.3,aiDiff:'agressiva'}
+};
+const PRESET_NAMES={criativo:'Criativo',leve:'Leve',normal:'Normal',elevado:'Elevado'};
+// Custos base das construções, guardados para poder reaplicar o multiplicador.
+const DEF_BASE={};
+function applyCosts(C){
+  for(const k in DEF){ const d=DEF[k]; if(!d.c) continue;
+    if(!DEF_BASE[k]) DEF_BASE[k]=Object.assign({},d.c);
+    const out={}; for(const r in DEF_BASE[k]) out[r]=Math.max(1,Math.round(DEF_BASE[k][r]*C.cost));
+    d.c=out;
+  }
+}
+// Valor de uma configuração na partida atual (cai no normal se faltar).
+function cf(k){ const C=S&&S.cfg; const v=C?C[k]:undefined; return (v===undefined||v===null)?PRESETS.normal[k]:v; }
+let creation={tribe:'Minha tribo',emblem:'O',sizeIdx:0,diff:'normal',mode:'tempo',preset:'normal',cfg:Object.assign({},PRESETS.normal)};
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 
 // ---------- Preferências ----------
@@ -708,24 +741,28 @@ function buildingsList(){
 
 // ---------- Início de partida ----------
 function newGame(o){
+  const C=Object.assign({},PRESETS.normal,o.cfg||{});
+  applyCosts(C);
   N=o.size;
   const g=[];
   for(let y=0;y<N;y++){ g.push([]); for(let x=0;x<N;x++){
     const r=h2(x,y); let t='planicie';
-    if(r<0.12) t='floresta'; else if(r<0.17) t='fruta'; else if(r<0.21) t='animais'; else if(r<0.25) t='pedra'; else if(r<0.28) t='minerio'; else if(r<0.31) t='carvao'; else if(r<0.33) t='petroleo';
+    const a1=0.12*C.nat,a2=0.17*C.nat,a3=0.21*C.nat,a4=0.25*C.nat,a5=a4+0.03*C.ore,a6=a5+0.03*C.ore,a7=a6+0.02*C.ore;
+    if(r<a1) t='floresta'; else if(r<a2) t='fruta'; else if(r<a3) t='animais'; else if(r<a4) t='pedra'; else if(r<a5) t='minerio'; else if(r<a6) t='carvao'; else if(r<a7) t='petroleo';
     g[y].push({t,b:null});
   }}
   const rx=Math.round(N*0.65);
-  for(let y=0;y<N;y++) g[y][rx].t='rio';
+  if(C.rio) for(let y=0;y<N;y++) g[y][rx].t='rio';
   const bx=Math.round(N*0.3), by=Math.round(N/2);
   S={N,tribe:o.tribe,emblem:o.emblem,mode:o.mode,turn:0,speed:o.mode==='turnos'?0:1,prevSpeed:1,
      res:{food:100,wood:60,stone:20,metal:0,science:0,carvao:0,tabua:0,lapida:0,aco:0,bens:0,petroleo:0,asfalto:0,combustivel:0,ouro:25},
      morale:100,religion:null,groups:[],gid:1,selGroup:null,renaming:false,queue:[],log:[],
      cities:[{id:1,pid:0,name:'Fogueira Central',x:bx,y:by,level:1,capital:true,adults:3,children:1,happy:50,tax:'padrao',starve:0}],
      ai:[],rel:{},inbox:[],nextId:2,curCity:1,tool:null,sel:null,mgmt:null,dip:false,evp:false,tab:'urbano',grid:g,
-     over:null,victoryShown:false,active:[],pending:null,evHistory:[],diff:o.diff,autoSlot:0};
+     over:null,victoryShown:false,active:[],pending:null,evHistory:[],diff:o.diff,autoSlot:0,cfg:C};
   g[by][bx].b={type:'base',cid:1,pid:0,level:1,workers:0};
-  const nAi=SIZES.find(s=>s.size===N).ai;
+  for(const k of ['food','wood','stone','ouro']) S.res[k]=Math.round(S.res[k]*C.start);
+  const nAi=C.ias?Math.min(AI_FR.length,C.ias):SIZES.find(s=>s.size===N).ai;
   for(let i=0;i<nAi;i++){
     const f=AI_FR[i], ax=Math.round(f[0]*(N-1)), ay=Math.round(f[1]*(N-1));
     const id=S.nextId++, pid=i+1;
@@ -866,6 +903,7 @@ function scaleGroup(g,frac){
 }
 function pruneGroups(){ S.groups=S.groups.filter(g=>groupCount(g)>0 && (g.hp==null||g.hp>0)); }
 function loseArmy(pid,frac){
+  if(pid===0) frac*=cf('loss');
   for(const g of groupsOf(pid)) scaleGroup(g,1-frac);
   pruneGroups();
 }
@@ -915,11 +953,11 @@ function battle(a,b){
 function bMaxHp(b){
   const d=DEF[b.type]||{};
   const base=b.type==='base'?120:(d.hp||40);
-  return Math.round(base*(1+0.5*((b.level||1)-1)));
+  return Math.round(base*(1+0.5*((b.level||1)-1))*((b.pid||0)===0?cf('bld'):1));
 }
 function ensureHp(b){ if(b.hp==null) b.hp=bMaxHp(b); }
 function groupHpMax(g){ return Math.max(10,groupSpace(g)*10); }
-function damageGroup(g,frac){ if(g.hp==null) g.hp=groupHpMax(g); const lost=groupHpMax(g)*frac; g.hp=Math.max(0,g.hp-lost); fxAdd(g.x,g.y,'-'+Math.round(lost),'#ff6a5a'); }
+function damageGroup(g,frac){ if(gPid(g)===0) frac*=cf('loss'); if(g.hp==null) g.hp=groupHpMax(g); const lost=groupHpMax(g)*frac; g.hp=Math.max(0,g.hp-lost); fxAdd(g.x,g.y,'-'+Math.round(lost),'#ff6a5a'); }
 function inOwnTerritory(x,y,pid){ return peopleCities(pid).some(c=>Math.max(Math.abs(c.x-x),Math.abs(c.y-y))<=8); }
 function healTick(){
   for(const o of buildingsList()){
@@ -1149,7 +1187,7 @@ function aiTrain(p){
   const limit=p.cities.length*4+4;
   if(armyCount(p.pid)>=limit) return;
   const type = level>=3?'infantaria':level>=2?pick(['lanceiro','arqueiro']):'cacador';
-  const cost=UNITS[type].manut*2;
+  const cost=UNITS[type].manut*2*cf('ucost');
   if(p.res.ouro<cost) return;
   const fc=freeTileNear(cap); if(!fc) return;
   p.res.ouro-=cost;
@@ -1224,13 +1262,14 @@ function advanceObras(){
 }
 // Manutenção: cada casa custa ouro por turno, cada rua também (mais se asfaltada).
 function maintain(){
-  let casas=0, ruas=0;
+  let casas=0, ruas=0, predios=0;
   for(const o of buildingsList()){
     if((o.b.pid||0)!==0) continue;
     if(o.b.type==='casa') casas++;
     else if(o.b.type==='estrada') ruas+=(o.b.level||1);
+    else if(o.b.type!=='base'&&o.b.type!=='ruina'&&o.b.type!=='obra') predios+=(o.b.level||1);
   }
-  const custo=casas*0.1+ruas*0.03*(hasTech('urb')?0.5:1);
+  const custo=(casas*0.15+ruas*0.04*(hasTech('urb')?0.5:1)+predios*0.06)*cf('maint');
   if(custo>0){ S.res.ouro-=custo; led('ouro','manutencao',-custo); }
   if(S.res.ouro<0) log('Ouro negativo: manutenção de casas e ruas está acima da arrecadação.');
 }
@@ -1359,7 +1398,7 @@ function cityScore(c){
 }
 function evolveCity(cid){
   const c=cityById(cid);
-  const next=c.level+1; if(next>4) return;
+  const next=c.level+1; if(next>10) return;
   const r=BASE_REQ[next];
   if(cityScore(c)<r.score){ log(c.name+': faltam pontos de construção conectados para o Nível '+next+'.'); return; }
   if(!canPay(r.cost)){ log('Recursos insuficientes para evoluir a cidade.'); return; }
@@ -1558,7 +1597,7 @@ function produce(){
     }
     if(d.out){
       for(const r in d.out){
-        let amt=d.out[r]*eff;
+        let amt=d.out[r]*eff*cf('gain');
         if(r==='food') amt*=foodMult();
         if(r==='food' && hasTech('agri')) amt*=1.1;
         if(r==='science' && boom) amt*=1.25;
@@ -1585,8 +1624,9 @@ function consume(){
 }
 function births(){
   for(const c of S.cities){
-    if((S.turn%2===0 || S.turn<(c.buffEnd||0)) && S.res.food>20 && c.happy>=55 && c.adults+c.children<capPop(c.id)){ c.children++; log('Nasceu uma criança em '+c.name+'.'); }
-    if(S.turn%30===0 && c.children>0){ c.children--; c.adults++; }
+    if((S.turn%3===0 || S.turn<(c.buffEnd||0)) && S.res.food>40 && c.happy>=60 && c.adults+c.children<capPop(c.id)){ c.children++; log('Nasceu uma criança em '+c.name+'.'); }
+    // Criança vira adulto a cada 12 turnos; se não houver nenhum adulto, a primeira criança amadurece na hora (senão a cidade trava).
+    if(c.children>0 && (c.adults===0 || S.turn%12===0)){ c.children--; c.adults++; log('Uma criança de '+c.name+' virou adulta.'); }
   }
 }
 
@@ -1602,7 +1642,7 @@ function recruit(type,fast){
   const c=capital();
   if(c.adults<=0){ log('Sem adultos disponíveis na capital.'); return; }
   if(armySpace()+u.space>armyLimit()){ log('Limite do exército atingido ('+armyLimit()+').'); return; }
-  const cost=u.manut*(fast?4:2);
+  const cost=u.manut*(fast?4:2)*cf('ucost');
   if(S.res.ouro<cost){ log('Ouro insuficiente.'); return; }
   S.res.ouro-=cost; c.adults--;
   S.queue.push({type,left:fast?1:2});
@@ -1659,7 +1699,7 @@ function happinessAll(){
   for(const c of S.cities){
     const pop=c.adults+c.children, cap=capPop(c.id);
     const over=Math.max(0,pop-cap);
-    const F=[['Base',55],['Impostos '+TAX[c.tax].n.toLowerCase(),TAX[c.tax].h]];
+    const F=[['Base',45],['Impostos '+TAX[c.tax].n.toLowerCase(),TAX[c.tax].h]];
     if(S.active.some(e=>e.id==='festival'&&e.cityId===c.id)) F.push(['Festival',10]);
     for(const o of cityBuildings(c.id)){
       const b=o.b;
@@ -1894,6 +1934,12 @@ function aiSpot(c,k){
   return null;
 }
 function aiEconomyTick(p){
+  const r=p.res, before={}; for(const k in r) before[k]=r[k]||0;
+  aiEconomyTickRaw(p);
+  const m=cf('aiGain'); if(m===1) return;
+  for(const k in r){ const d=(r[k]||0)-before[k]; if(d>0) r[k]=before[k]+d*m; }
+}
+function aiEconomyTickRaw(p){
   const r=p.res;
   const adultsSum=p.cities.reduce((s,c)=>s+c.adults,0);
   for(const c of p.cities){
@@ -1918,7 +1964,7 @@ function aiEconomyTick(p){
 function aiBuildTick(p){
   if(p.dead||!p.cities.length) return;
   for(const c of p.cities){
-    if(c.level<4){
+    if(c.level<10){
       const next=c.level+1, rq=BASE_REQ[next];
       if(aiCityScore(c)>=rq.score && aiCanPay(p,rq.cost)){ aiPay(p,rq.cost); c.level=next; log(c.name+' evoluiu para o Nível '+next+'.'); }
     }
@@ -2036,7 +2082,7 @@ function enterGame(){
 }
 function loadSave(data){
   try{
-    S=JSON.parse(data);
+    S=JSON.parse(data); applyCosts(Object.assign({},PRESETS.normal,S.cfg||{}));
     N=S.N;
     invalidate();
     computeNetwork(); computeContacts();
@@ -2072,10 +2118,35 @@ function showTitle(){
   renderModal();
   updateMusic(false);
 }
+function fmtV(k,v){
+  if(k==='ias') return v==null?'auto':String(v);
+  if(k==='rio') return v?'sim':'não';
+  return Number(v).toFixed(2).replace(/\.?0+$/,'')+'×';
+}
+const SLIDERS=[
+  {g:'Recursos',items:[['gain','Produção dos prédios',0.25,3,0.05],['start','Estoque inicial',0.5,4,0.1]]},
+  {g:'Mapa',items:[['ore','Minérios e carvão',0.3,2,0.05],['nat','Natureza (floresta, caça, pedra)',0.5,2,0.05]]},
+  {g:'Construções',items:[['cost','Custo de construção',0.25,3,0.05],['maint','Manutenção de casas e ruas',0,3,0.05],['bld','Vida das construções',0.5,3,0.05]]},
+  {g:'Unidades',items:[['ucost','Custo de recrutamento',0.25,3,0.05],['loss','Perdas das suas tropas',0.1,3,0.05]]},
+  {g:'IAs',items:[['aiGain','Produção das IAs',0.25,3,0.05]]}
+];
+function setPreset(p){ creation.cfg=Object.assign({},PRESETS[p]); creation.preset=p; creation.diff=PRESETS[p].aiDiff; showCreate(); }
+function setCfg(k,v){
+  creation.cfg[k]=parseFloat(v); creation.preset=null;
+  const el=document.getElementById('v_'+k); if(el) el.textContent=fmtV(k,creation.cfg[k]);
+  document.querySelectorAll('.pre').forEach(b=>b.classList.toggle('on',b.dataset.p===creation.preset));
+}
+function setRio(v){ creation.cfg.rio=v; creation.preset=null; showCreate(); }
+function setIas(v){ creation.cfg.ias=v==='auto'?null:parseInt(v,10); creation.preset=null; showCreate(); }
 function showCreate(){
   screen='create'; modal=null;
-  const c=creation;
+  const c=creation, C=c.cfg;
   const opt=(key,val,label,cur)=>`<div class="opt ${cur===val?'on':''}" onclick="setCreate('${key}','${val}')">${label}</div>`;
+  const sl=SLIDERS.map(gr=>`<div class="cgrp">${gr.g}</div>`+gr.items.map(([k,lab,mn,mx,st])=>
+    `<div class="slid"><span>${lab}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${C[k]}" oninput="setCfg('${k}',this.value)"><b id="v_${k}">${fmtV(k,C[k])}</b></div>`).join('')).join('');
+  const iasSel=`<select onchange="setIas(this.value)">
+      <option value="auto"${C.ias==null?' selected':''}>Automático (pelo tamanho)</option>
+      ${[1,2,3,4,5,6,7].map(n=>`<option value="${n}"${C.ias===n?' selected':''}>${n}</option>`).join('')}</select>`;
   showScreenBox(`
     <h1>Nova tribo</h1>
     <div class="sub">Defina sua civilização</div>
@@ -2086,9 +2157,18 @@ function showCreate(){
     <div class="row"><div class="lbl">Tamanho do mundo</div><div class="opts">
       ${SIZES.map((s,i)=>`<div class="opt ${c.sizeIdx===i?'on':''}" onclick="setCreate('sizeIdx',${i})">${s.n} (${s.size}x${s.size}, ${s.ai} IAs)</div>`).join('')}
     </div></div>
+    <div class="row"><div class="lbl">Modo de partida</div><div class="pres">
+      ${Object.keys(PRESETS).map(p=>`<button class="pre ${c.preset===p?'on':''}" data-p="${p}" onclick="setPreset('${p}')">${PRESET_NAMES[p]}</button>`).join('')}
+    </div><div class="ustat">Predefinições ajustam tudo abaixo. Mexer num controle vira "Personalizado".</div></div>
     <div class="row"><div class="lbl">Dificuldade das IAs</div><div class="opts">
       ${opt('diff','pacifista','Pacifista',c.diff)}${opt('diff','normal','Normal',c.diff)}${opt('diff','agressiva','Agressiva',c.diff)}
     </div></div>
+    <div class="row"><div class="lbl">Personalizar</div>
+      ${sl}
+      <div class="cgrp">Mapa e IAs</div>
+      <div class="slid"><span>Rio no mapa</span><label><input type="checkbox" ${C.rio?'checked':''} onchange="setRio(this.checked)"> ${C.rio?'sim':'não'}</label><span></span></div>
+      <div class="slid"><span>Número de IAs</span>${iasSel}<span></span></div>
+    </div>
     <div class="row"><div class="lbl">Modo de jogo</div><div class="opts">
       ${opt('mode','tempo','Tempo real',c.mode)}${opt('mode','turnos','Por turnos',c.mode)}
     </div></div>
@@ -2109,7 +2189,7 @@ function startFromCreate(){
   document.getElementById('game').style.visibility='visible';
   document.getElementById('hud').style.display='flex';
   document.getElementById('bottom').style.display='block';
-  newGame({tribe:c.tribe.trim(),emblem:c.emblem,size:sz.size,diff:c.diff,mode:c.mode});
+  newGame({tribe:c.tribe.trim(),emblem:c.emblem,size:sz.size,diff:c.diff,mode:c.mode,cfg:c.cfg});
   if(sz.size>80) log('Mundos grandes podem rodar mais devagar.');
 }
 // Menu de pausa (botão "Menu" ou Esc). A pausa de velocidade é o "||".
@@ -2153,9 +2233,6 @@ function renderModal(){
   if(modal==='pause'){
     pop.innerHTML=`<h3>Menu</h3>
       <button class="cbtn good" onclick="closePause()">Continuar</button>
-      <div class="sec" style="margin-top:10px">Salvar jogo</div>
-      <input type="text" id="sv_name" maxlength="40" placeholder="Nome do salvamento" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid #6b4a2a;border-radius:4px">
-      <button class="cbtn" onclick="act(()=>manualSave(document.getElementById('sv_name').value));renderModal()">Salvar</button>
       <button class="cbtn" onclick="modal='saves';renderModal()">Salvos</button>
       <button class="cbtn" onclick="modal='opts';renderModal()">Opções</button>
       <button class="cbtn sec2" onclick="modal=null;showTitle()">Voltar ao menu inicial</button>`;
@@ -2451,7 +2528,7 @@ function renderHud(){
     <button class="sp" id="menubtn" title="Menu (Esc)">Menu</button>
     <button class="sp" id="statsbtn" title="Estatísticas">Estatísticas</button>
     <button class="sp" id="helpbtn" title="Ajuda e atalhos">Ajuda</button>
-    <span><span id="emb">${S.emblem}</span><b>${cap.name}</b> Nv.${cap.level}${S.cities.length>1?' · '+S.cities.length+' cidades':''}</span>
+    <span><span id="emb">${S.emblem}</span><b>${S.tribe}</b> Nv.${cap.level}${S.cities.length>1?' · '+S.cities.length+' cidades':''}</span>
     ${resChip('food')}${resChip('wood')}${resChip('stone')}${resChip('metal')}${resChip('ouro')}${resChip('morale')}
     <span>Exército <b>${armySpace()}</b>/${armyLimit()}</span>
     <span>Pop <b>${totalPop()}</b>/${capPop()}</span>
@@ -2661,7 +2738,7 @@ function renderCard(){
       if(!avail.length) html+=`<div style="color:#666">Nenhuma unidade ainda. Suba a Academia Militar.</div>`;
       for(const k of avail){
         const u=UNITS[k];
-        html+=cbtn(`${u.n}: recrutar (${(u.manut*2).toFixed(1)})`,`recruit('${k}',false)`)+cbtn(`${u.n}: rápido (${(u.manut*4).toFixed(1)})`,`recruit('${k}',true)`);
+        html+=cbtn(`${u.n}: recrutar (${(u.manut*2*cf('ucost')).toFixed(1)})`,`recruit('${k}',false)`)+cbtn(`${u.n}: rápido (${(u.manut*4*cf('ucost')).toFixed(1)})`,`recruit('${k}',true)`);
       }
       html+=cbtn('Fechar criação','S.recruitOpen=null');
     } else html+=cbtn('Criar unidades',`S.recruitOpen='${x},${y}'`);
@@ -2719,6 +2796,7 @@ function popStatsHtml(c){
     <div class="ulbl">${rel}</div>
     ${S.turn<(c.buffEnd||0)?`<div class="bonus">Bônus de produção e crescimento até o turno ${c.buffEnd}</div>`:''}
     <div class="ptitle2">O que influencia</div>${fx}</div>`;
+  h+=workersHtml([c]);
   return h;
 }
 // Recursos: quanto esta cidade contribui para o império (por turno) e o estoque geral.
@@ -2729,7 +2807,7 @@ function recursosHtml(c){
   const fmt=v=>(v>0?'+':'')+v.toFixed(1);
   let rows=keys.map(k=>{
     const v=mine(k), t=emp(k), sh=(t>0&&v>0)?Math.round(v/t*100)+'%':'—';
-    return `<tr><td>${RES_NAME[k]||k}</td><td class="${v>=0?'pos':'neg'}">${fmt(v)}</td><td>${fmt(t)}</td><td>${sh}</td></tr>`;
+    return `<tr><td>${shapeSvg(k)} ${RES_NAME[k]||k}</td><td class="${v>=0?'pos':'neg'}">${fmt(v)}</td><td>${fmt(t)}</td><td>${sh}</td></tr>`;
   }).join('');
   if(!rows) rows='<tr><td colspan="4" style="color:#6b5a3a">Esta cidade ainda não produziu nada neste turno.</td></tr>';
   return `<div class="stitle">${c.name} · contribuição por turno</div>
@@ -2742,10 +2820,10 @@ function impRecursosHtml(){
   const rows=keys.map(k=>{
     const tot=S.cities.reduce((s,c)=>s+((c.prod&&c.prod[k])||0),0);
     const parts=S.cities.map(c=>{const v=(c.prod&&c.prod[k])||0; return Math.abs(v)<0.001?null:`<span class="${v>=0?'pos':'neg'}">${c.name} ${fmt(v)}</span>`;}).filter(Boolean).join(' · ')||'—';
-    return `<tr><td><b>${RES_NAME[k]||k}</b></td><td class="${tot>=0?'pos':'neg'}">${fmt(tot)}</td><td style="font-size:11px;line-height:1.5">${parts}</td><td>${Math.floor(S.res[k])}</td></tr>`;
+    return `<tr><td>${shapeSvg(k)} <b>${RES_NAME[k]||k}</b></td><td class="${tot>=0?'pos':'neg'}">${fmt(tot)}</td><td>${Math.floor(S.res[k])}</td></tr>`;
   }).join('');
   return `<div class="stitle">Império · saldo por turno e estoque</div>
-    <table class="tbl"><tr><th>Recurso</th><th>Saldo</th><th>De onde vem / quem perde</th><th>Estoque</th></tr>${rows||'<tr><td colspan="4">Nada ainda.</td></tr>'}</table>
+    <table class="tbl"><tr><th>Recurso</th><th>Saldo</th><th>Estoque</th></tr>${rows||'<tr><td colspan="3">Nada ainda.</td></tr>'}</table>
     <div class="pcard" style="margin-top:8px"><div class="krow"><span>Moral</span><b>${Math.floor(S.morale)}</b></div></div>`;
 }
 // População do império: felicidade média (soma ÷ número de cidades) e o que puxa para baixo.
@@ -2779,7 +2857,21 @@ function compareHtml(){
   }).join('');
   return `<div class="stitle">Comparação entre os povos</div><table class="tbl"><tr><th>Métrica</th><th>Posição</th><th>Você</th><th>Melhor</th><th>Média</th><th>Pior</th></tr>${rows}</table>`;
 }
-function impPopHtml(){
+// Lista de prédios com gente trabalhando, quantos trabalhadores e quantos prédios.
+function workersHtml(list){
+  const agg={};
+  for(const c of list) for(const o of cityBuildings(c.id)){
+    if((o.b.pid||0)!==0) continue;
+    const d=DEF[o.b.type]; if(!d||!d.cap) continue;
+    const a=agg[o.b.type]||(agg[o.b.type]={n:0,w:0,cap:0}); a.n++; a.w+=o.b.workers||0; a.cap+=d.cap;
+  }
+  const keys=Object.keys(agg).filter(k=>agg[k].w>0).sort((a,b)=>agg[b].w-agg[a].w);
+  const rows=keys.map(k=>`<div class="krow"><span>${DEF[k].n}</span><b>${agg[k].w} de ${agg[k].cap} · ${agg[k].n} prédio${agg[k].n>1?'s':''}</b></div>`).join('');
+  const tot=keys.reduce((s,k)=>s+agg[k].w,0);
+  return `<div class="pcard wide"><div class="ptitle">Quem trabalha onde</div>${rows||'<div class="ustat">Ninguém trabalhando.</div>'}<div class="krow"><span>Total trabalhando</span><b>${tot}</b></div></div>`;
+}
+function impPopHtml(){ return impPopBase()+workersHtml(S.cities); }
+function impPopBase(){
   const n=S.cities.length||1;
   const avgH=Math.round(S.cities.reduce((s,c)=>s+c.happy,0)/n);
   const tot=S.cities.reduce((s,c)=>s+c.adults+c.children,0);
@@ -2818,8 +2910,8 @@ function renderMgmt(){
   h+=`<button class="cbtn inl" onclick="act(()=>toggleRename(${c.id}))">${S.renaming?'Confirmar':'Renomear'}</button>`;
   h+=cbtn(c.capital?'Capital atual':'Tornar capital', `setCapital(${c.id})`, c.capital?'on':'', c.capital);
   h+=`<div class="sec">Evolução</div>`;
-  h+=`Nível ${c.level}${c.level<4?' · pontos conectados '+score+' / '+BASE_REQ[next].score+' para o Nível '+next:' · nível máximo'}`;
-  if(c.level<4) h+=cbtn(`Evoluir para Nível ${next} (${costStr(BASE_REQ[next].cost)})`,`evolveCity(${c.id})`);
+  h+=`Nível ${c.level}${c.level<10?' · pontos conectados '+score+' / '+BASE_REQ[next].score+' para o Nível '+next:' · nível máximo'}`;
+  if(c.level<10) h+=cbtn(`Evoluir para Nível ${next} (${costStr(BASE_REQ[next].cost)})`,`evolveCity(${c.id})`);
   h+=`<div class="sec">Impostos</div>`;
   h+=`Atual: ${TAX[c.tax].n}${lvl3?'':' · <span style="color:#a0401a">disponível no Nível 3</span>'}`;
   for(const k of ['baixo','padrao','alto']) h+=cbtn(TAX[k].n+` (adulto ${TAX[k].a}, criança ${TAX[k].c}, felicidade ${TAX[k].h>0?'+':''}${TAX[k].h})`,`setTax(${c.id},'${k}')`, c.tax===k?'on':'', !lvl3);
@@ -3050,7 +3142,6 @@ function renderAlerts(){
   rc.style.display=(S&&screen==='game')?'flex':'none';
   if(S && screen==='game'){
     const ACT=[
-      {n:'Produção',ic:'gear',on:modal==='producao',f:()=>{ modal=modal==='producao'?null:'producao'; renderAll(); }},
       {n:'Árvores',ic:'book',on:modal==='arvore',f:()=>{ toggleArv(); renderAll(); }},
       {n:'Diplomacia'+(S.inbox.length?' ('+S.inbox.length+')':''),ic:'flag',on:!!S.dip,f:()=>{ S.dip=!S.dip; S.evp=false; S.mgmt=null; dipDirty=true; renderAll(); }}
     ];
